@@ -1,86 +1,71 @@
-# Vercel Blob Storage Setup
+# Publishing estimator output
 
-This guide will help you migrate your JSON data files from local storage to Vercel Blob Storage.
+**You do not need this to run the dashboard.** The blob store is public and
+read-only, so `bun install && bun run dev` works with no token and no account.
+This page is only for replacing the data with new estimator output.
 
-## 🚀 Quick Setup
+## How the data is addressed
 
-### 1. Create a Vercel Account & Project
-1. Go to [vercel.com](https://vercel.com) and sign up/login
-2. Create a new project or use an existing one
-3. Go to your project dashboard
+Two files per ticker, named by convention rather than tracked in a mapping:
 
-### 2. Create a Blob Store
-1. In your Vercel dashboard, go to **Storage** tab
-2. Click **Create Database** → **Blob**
-3. Give it a name like `financial-data-storage`
-4. Click **Create**
-
-### 3. Get Your Blob Token
-1. In the Blob store dashboard, go to **Settings**
-2. Copy the **BLOB_READ_WRITE_TOKEN**
-3. This token allows read/write access to your blob store
-
-### 4. Set Environment Variable
-Create a `.env.local` file in your project root:
-
-```bash
-BLOB_READ_WRITE_TOKEN=your_token_here
+```
+bubble_data_<TICKER>_splitadj_1996to2023.json   estimates + split-adjusted prices
+<TICKER>_data.json                              raw, as-traded prices
 ```
 
-**Important**: Add `.env.local` to your `.gitignore` to keep your token secure!
+`src/utils/dataLoader.ts` builds both URLs from the ticker and a single host
+constant. Adding a ticker means adding it to `STOCK_LIST` and `STOCK_NAMES` in
+`src/types/bubbleData.ts` and uploading files under those names. There is no URL
+list to keep in sync.
 
-### 5. Upload Your Data Files
-Run the upload script:
+## Uploading
 
-```bash
-bun run upload-data
-```
+1. Create a Blob store in the Vercel dashboard under **Storage → Create →
+   Blob**.
 
-This will:
-- Upload all JSON files from `public/data/` to Blob Storage
-- Generate public URLs for each file
-- Display a URL mapping for easy integration
+2. Copy `BLOB_READ_WRITE_TOKEN` from the store's settings into `.env.local`:
 
-### 6. Update Your Code
-After upload, copy the URL mapping from the console output and update the `BLOB_URLS` object in `src/utils/dataLoader.ts`.
+   ```bash
+   cp .env.example .env.local
+   # then paste the token
+   ```
 
-## 🔧 How It Works
+   `.env.local` is gitignored. Do not commit it.
 
-### Before (Local Files)
-```
-/public/data/bubble_data_AAPL_splitadj_1996to2023.json
-```
+3. Put the JSON files in `public/data/`, named as above, and upload:
 
-### After (Blob Storage)
-```
-https://your-blob-store.vercel-storage.com/bubble_data_AAPL_splitadj_1996to2023.json
-```
+   ```bash
+   bun run upload-data
+   ```
 
-### Fallback Strategy
-The code automatically falls back to local files if Blob URLs aren't configured, so you can develop locally and use Blob Storage in production.
+4. If the store is new, its host differs from the one in the repo. Update
+   `BLOB_HOST` in `src/utils/dataLoader.ts` to match. `bun run get-blob-urls`
+   prints what is actually in the store.
 
-## 💰 Pricing
-Vercel Blob Storage pricing (as of 2024):
-- **Free tier**: 1GB storage, 100GB bandwidth
-- **Pro**: $20/month for 100GB storage, 1TB bandwidth
-- **Enterprise**: Custom pricing
+5. Rebuild the cross-asset panel, which is derived from the per-ticker files and
+   committed to the repo:
 
-Your JSON files are likely well within the free tier limits.
+   ```bash
+   bun run build:cross-asset
+   ```
 
-## 🔒 Security
-- Blob URLs are public but unguessable (contain random tokens)
-- Read-only access for your application users
-- Write access only with your private token
+6. Check it worked:
 
-## 🚀 Deployment
-When deploying to Vercel:
-1. Add `BLOB_READ_WRITE_TOKEN` to your Vercel project environment variables
-2. Your app will automatically use Blob Storage URLs
-3. Faster loading with global CDN distribution
+   ```bash
+   bun run test-blob
+   bun run dev
+   ```
 
-## 📝 Next Steps
-1. Follow the setup steps above
-2. Run `bun run upload-data`
-3. Update the URL mapping in your code
-4. Test locally
-5. Deploy to Vercel!
+## Notes
+
+- Blob URLs are public but unguessable. Anyone with the link can read; only the
+  token can write. Keep the token out of the client bundle, which is why the
+  upload scripts run in Node and not in the app.
+- Files are served with `cache-control: public, max-age=2592000`. A new upload
+  at the same path takes up to 30 days to displace a cached copy in a given
+  region, so during testing change the filename rather than fighting the cache.
+- The per-ticker files are roughly 12MB each and are **not** compressed in
+  transit. That is the dominant cost of loading the dashboard and the reason
+  the cross-asset panel uses a separate 220KB derivative instead.
+- Do not upload raw OptionMetrics option data. The derived series can be
+  published under this repository's licence; the underlying data cannot.
