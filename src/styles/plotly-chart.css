@@ -1,192 +1,73 @@
-/* Plotly Chart Dark Mode Styles */
+/*
+ * Plotly chrome that has to be styled from CSS.
+ *
+ * Everything to do with the hover tooltip used to live here and has been
+ * removed. Those rules targeted `.hovertext` and set `background`, `padding`,
+ * `box-shadow` and `backdrop-filter` on it. Two problems: the charts use
+ * `hovermode: "x unified"`, which renders the tooltip as `g.legend` and never
+ * creates a `.hovertext` node at all, and none of those properties do anything
+ * on an SVG group even when one exists. The rules were dead, and the `!important`
+ * on them would have fought the themed values in usePlotlyTheme if they had not
+ * been. Tooltip appearance is set there, via layout.hoverlabel.
+ *
+ * The modebar is real HTML, so it is styled here, from the app's own theme
+ * tokens rather than a second set of colour variables.
+ */
 
-/* CSS Variables for Light Mode */
-:root {
-	--modebar-bg: rgba(255, 255, 255, 0.9);
-	--modebar-border: #ddd;
-	--modebar-color: #444;
-	--modebar-hover-bg: rgba(0, 0, 0, 0.1);
-	--tooltip-bg: rgba(255, 255, 255, 0.95);
-	--tooltip-border: #ccc;
-	--tooltip-color: #333;
-	--tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* CSS Variables for Dark Mode */
-[data-theme="dark"] {
-	--modebar-bg: rgba(20, 20, 20, 0.95);
-	--modebar-border: #444;
-	--modebar-color: #ccc;
-	--modebar-hover-bg: rgba(255, 255, 255, 0.1);
-	--tooltip-bg: rgba(15, 15, 15, 0.98);
-	--tooltip-border: #444;
-	--tooltip-color: #f0f0f0;
-	--tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-}
-
-/* Also support .dark class for compatibility */
-.dark {
-	--modebar-bg: rgba(20, 20, 20, 0.95);
-	--modebar-border: #444;
-	--modebar-color: #ccc;
-	--modebar-hover-bg: rgba(255, 255, 255, 0.1);
-	--tooltip-bg: rgba(15, 15, 15, 0.98);
-	--tooltip-border: #444;
-	--tooltip-color: #f0f0f0;
-	--tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-}
-
-/* Enhanced Tooltip styling */
-.plotly-chart-container .hoverlayer .hovertext,
-.js-plotly-plot .hoverlayer .hovertext,
-.plotly .hoverlayer .hovertext {
-	background: var(--tooltip-bg) !important;
-	border: 1px solid var(--tooltip-border) !important;
-	color: var(--tooltip-color) !important;
-	border-radius: 8px !important;
-	box-shadow: var(--tooltip-shadow) !important;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-		"Helvetica Neue", Arial, sans-serif !important;
-	font-size: 13px !important;
-	line-height: 1.5 !important;
-	padding: 12px 16px !important;
-	backdrop-filter: blur(8px) !important;
-	max-width: 300px !important;
-	min-width: 200px !important;
-}
-
-/* Tooltip arrow/pointer styling */
-.plotly-chart-container .hoverlayer .hovertext path,
-.js-plotly-plot .hoverlayer .hovertext path,
-.plotly .hoverlayer .hovertext path {
-	fill: var(--tooltip-bg) !important;
-	stroke: var(--tooltip-border) !important;
-	stroke-width: 1px !important;
-}
-
-/* Enhanced tooltip text styling */
-.plotly-chart-container .hoverlayer .hovertext .name {
-	font-weight: 600 !important;
-	margin-bottom: 6px !important;
-	font-size: 14px !important;
-	color: var(--tooltip-color) !important;
-}
-
-/* Style for bold text in tooltips */
-.plotly-chart-container .hoverlayer .hovertext b {
-	color: var(--tooltip-color) !important;
-	font-weight: 700 !important;
-}
-
-/* Style for numeric values in tooltips */
-.plotly-chart-container .hoverlayer .hovertext .value {
-	font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas,
-		"Courier New", monospace !important;
-	font-weight: 600 !important;
-}
-
-/* Animation for tooltip appearance */
-.plotly-chart-container .hoverlayer .hovertext {
-	animation: tooltipFadeIn 0.2s ease-out !important;
-}
-
-@keyframes tooltipFadeIn {
-	from {
-		opacity: 0;
-		transform: translateY(4px) scale(0.95);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0) scale(1);
-	}
-}
-
-/* Responsive tooltip sizing */
-@media (max-width: 768px) {
-	.plotly-chart-container .hoverlayer .hovertext {
-		font-size: 12px !important;
-		padding: 10px 14px !important;
-		max-width: 250px !important;
-		min-width: 180px !important;
-	}
-
-	.plotly-chart-container .hoverlayer .hovertext .name {
-		font-size: 13px !important;
-		margin-bottom: 4px !important;
-	}
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-	:root {
-		--tooltip-border: #000;
-		--tooltip-color: #000;
-	}
-
-	[data-theme="dark"],
-	.dark {
-		--tooltip-border: #fff;
-		--tooltip-color: #fff;
-	}
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-	.plotly-chart-container .hoverlayer .hovertext {
-		animation: none !important;
-	}
-}
-
-/* Force dark background in dark mode - additional selectors for better coverage */
-[data-theme="dark"] .hoverlayer .hovertext,
-[data-theme="dark"] .js-plotly-plot .hoverlayer .hovertext,
-.dark .hoverlayer .hovertext,
-.dark .js-plotly-plot .hoverlayer .hovertext {
-	background: rgba(15, 15, 15, 0.98) !important;
-	color: #f0f0f0 !important;
-	border: 1px solid #444 !important;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6) !important;
-}
-
-[data-theme="dark"] .hoverlayer .hovertext path,
-[data-theme="dark"] .js-plotly-plot .hoverlayer .hovertext path,
-.dark .hoverlayer .hovertext path,
-.dark .js-plotly-plot .hoverlayer .hovertext path {
-	fill: rgba(15, 15, 15, 0.98) !important;
-	stroke: #444 !important;
-}
-
-.modebar {
+.plotly-chart-container .modebar {
 	position: absolute !important;
 	display: flex !important;
-	gap: 10px !important;
+	gap: 8px !important;
 	right: 0 !important;
-	max-width: 300px !important;
-	width: 100% !important;
 }
 
-.modebar div {
-	height: 30px !important;
-	gap: 10px !important;
+.plotly-chart-container .modebar-group {
+	display: flex !important;
+	align-items: center !important;
+	gap: 2px !important;
+	padding: 0 6px !important;
+	height: 28px !important;
+	border: 1px solid var(--border) !important;
+	border-radius: 6px !important;
+	background: var(--card) !important;
+}
+
+.plotly-chart-container .modebar-btn {
 	display: flex !important;
 	align-items: center !important;
 	justify-content: center !important;
-	gap: 10px !important;
-	padding: 0 10px !important;
-	border: 1px solid var(--border) !important;
-	border-radius: 5px !important;
-	background: var(--background) !important;
-	color: var(--foreground) !important;
-	font-size: 14px !important;
-	font-weight: 500 !important;
-	cursor: pointer !important;
-	transition: all 0.2s ease-in-out !important;
+	padding: 0 4px !important;
+	border-radius: 4px !important;
+	transition: background-color 0.12s ease-out !important;
 }
 
-.modebar div a {
-	padding: 0 !important;
+.plotly-chart-container .modebar-btn svg path {
+	fill: var(--muted-foreground) !important;
 }
 
-.modebar div a svg path {
+.plotly-chart-container .modebar-btn:hover {
+	background: var(--accent) !important;
+}
+
+.plotly-chart-container .modebar-btn:hover svg path,
+.plotly-chart-container .modebar-btn.active svg path {
 	fill: var(--foreground) !important;
+}
+
+/* Keyboard focus has to remain visible: the buttons are real controls. */
+.plotly-chart-container .modebar-btn:focus-visible {
+	outline: 2px solid var(--ring) !important;
+	outline-offset: 1px !important;
+}
+
+/* Plotly sizes its SVG from the container, which needs a definite width. */
+.plotly-chart-container .js-plotly-plot,
+.plotly-chart-container .plot-container {
+	width: 100% !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.plotly-chart-container .modebar-btn {
+		transition: none !important;
+	}
 }

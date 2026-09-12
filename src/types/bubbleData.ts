@@ -195,17 +195,6 @@ export function bubblePercent(value: number, price: number): number | null {
 }
 
 /**
- * Series colours. Chosen to stay distinguishable under deuteranopia and to
- * hold contrast on both the light and dark backgrounds.
- */
-export const TAU_COLORS = {
-	tau1: "#3b82f6", // blue
-	tau2: "#14b8a6", // teal
-	tau3: "#f59e0b", // amber
-	stockPrice: "#94a3b8", // slate, deliberately muted: price is context, not the subject
-} as const;
-
-/**
  * Market episodes shaded on the time axis, so a reader can tell at a glance
  * whether an estimated bubble lines up with a known one. Dates are the
  * conventional run-up windows, not precise peak/trough calls.
