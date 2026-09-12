@@ -1,7 +1,7 @@
 import { DatePicker } from "@/components/date-picker";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Select,
 	SelectContent,
@@ -9,111 +9,167 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
 import React from "react";
-import { STOCK_LIST, type StockCode } from "../types/bubbleData";
+import {
+	type BubbleScale,
+	STOCK_LIST,
+	STOCK_NAMES,
+	type StockCode,
+} from "../types/bubbleData";
 
 interface DashboardControlsProps {
 	selectedStock: StockCode;
 	startDate: Date | null;
 	endDate: Date | null;
+	scale: BubbleScale;
 	onStockChange: (stock: StockCode) => void;
+	onScaleChange: (scale: BubbleScale) => void;
 	onDateRangeChange: (startDate: Date | null, endDate: Date | null) => void;
 	onResetDateRange: () => void;
 	availableDateRange: { min: Date; max: Date } | null;
 	loading?: boolean;
 }
 
+const SCALES: { value: BubbleScale; label: string; hint: string }[] = [
+	{
+		value: "percent",
+		label: "% of price",
+		hint: "Comparable across assets and across decades",
+	},
+	{
+		value: "price",
+		label: "Price units",
+		hint: "Raw estimator output, in index points or dollars",
+	},
+];
+
+function Field({
+	label,
+	htmlFor,
+	children,
+}: {
+	label: string;
+	htmlFor?: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<label
+				htmlFor={htmlFor}
+				className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+			>
+				{label}
+			</label>
+			{children}
+		</div>
+	);
+}
+
 export const DashboardControls = React.memo(function DashboardControls({
 	selectedStock,
 	startDate,
 	endDate,
+	scale,
 	onStockChange,
+	onScaleChange,
 	onDateRangeChange,
 	onResetDateRange,
 	availableDateRange,
 	loading,
 }: DashboardControlsProps) {
 	return (
-		<Card className="mb-6">
-			<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-				<CardTitle className="text-2xl font-bold">
-					📊 Financial Bubble Detection Dashboard
-				</CardTitle>
-				<ThemeSwitcher />
-			</CardHeader>
-			<CardContent>
+		<Card className="mb-5">
+			<CardContent className="p-5">
 				<div className="flex flex-wrap items-end gap-4">
-					{/* Stock Selector */}
-					<div className="flex flex-col space-y-2">
-						<label htmlFor="stock-select" className="text-sm font-medium">
-							Stock
-						</label>
+					<Field label="Asset" htmlFor="stock-select">
 						<Select
 							value={selectedStock}
 							onValueChange={onStockChange}
 							disabled={loading}
 						>
-							<SelectTrigger id="stock-select" className="w-[180px]">
-								<SelectValue placeholder="Select stock" />
+							<SelectTrigger id="stock-select" className="w-[230px]">
+								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
 								{STOCK_LIST.map((stock) => (
 									<SelectItem key={stock} value={stock}>
-										{stock}
+										<span className="font-medium">{stock}</span>
+										<span className="ml-2 text-muted-foreground">
+											{STOCK_NAMES[stock]}
+										</span>
 									</SelectItem>
 								))}
 							</SelectContent>
 						</Select>
-					</div>
+					</Field>
 
-					{/* Date Range Picker */}
-					<div className="flex flex-col space-y-2">
-						<span className="text-sm font-medium">Start Date</span>
+					<Field label="From">
 						<DatePicker
-							date={startDate || undefined}
-							onSelect={(date) => onDateRangeChange(date || null, endDate)}
+							date={startDate ?? undefined}
+							onSelect={(date) => onDateRangeChange(date ?? null, endDate)}
 							minDate={availableDateRange?.min}
-							maxDate={availableDateRange?.max}
+							maxDate={endDate ?? availableDateRange?.max}
 							disabled={loading}
-							placeholder="Select start date"
+							placeholder="Start"
 						/>
-					</div>
+					</Field>
 
-					<div className="flex flex-col space-y-2">
-						<span className="text-sm font-medium">End Date</span>
+					<Field label="To">
 						<DatePicker
-							date={endDate || undefined}
-							onSelect={(date) => onDateRangeChange(startDate, date || null)}
-							minDate={startDate || availableDateRange?.min}
+							date={endDate ?? undefined}
+							onSelect={(date) => onDateRangeChange(startDate, date ?? null)}
+							minDate={startDate ?? availableDateRange?.min}
 							maxDate={availableDateRange?.max}
 							disabled={loading}
-							placeholder="Select end date"
+							placeholder="End"
 						/>
-					</div>
+					</Field>
 
-					{/* Reset Button */}
-					<div className="flex flex-col justify-end">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onResetDateRange}
-							disabled={loading}
-							className="w-full"
-						>
-							<RotateCcw className="mr-2 h-4 w-4" />
-							Reset Range
-						</Button>
+					<Field label="Bubble scale">
+						{/* A segmented control rather than a dropdown: two options that get
+						    toggled often should not cost two clicks. */}
+						<fieldset className="inline-flex rounded-md border border-border p-0.5">
+							<legend className="sr-only">Bubble scale</legend>
+							{SCALES.map((option) => (
+								<label
+									key={option.value}
+									title={option.hint}
+									className={cn(
+										"cursor-pointer rounded px-3 py-1.5 text-sm transition-colors",
+										scale === option.value
+											? "bg-primary text-primary-foreground"
+											: "text-muted-foreground hover:text-foreground",
+									)}
+								>
+									<input
+										type="radio"
+										name="bubble-scale"
+										className="sr-only"
+										checked={scale === option.value}
+										onChange={() => onScaleChange(option.value)}
+									/>
+									{option.label}
+								</label>
+							))}
+						</fieldset>
+					</Field>
+
+					<Button
+						type="button"
+						variant="outline"
+						onClick={onResetDateRange}
+						disabled={loading}
+					>
+						<RotateCcw className="mr-2 h-4 w-4" />
+						Full range
+					</Button>
+
+					<div className="ml-auto">
+						<ThemeSwitcher />
 					</div>
 				</div>
-
-				{/* Date Range Display */}
-				{startDate && endDate && (
-					<div className="mt-4 text-sm text-muted-foreground">
-						Showing data from {startDate.toLocaleDateString()} to{" "}
-						{endDate.toLocaleDateString()}
-					</div>
-				)}
 			</CardContent>
 		</Card>
 	);
