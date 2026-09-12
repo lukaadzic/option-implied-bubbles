@@ -28,8 +28,26 @@ export interface PlotlyPalette {
 	hoverBorder: string;
 	controlBg: string;
 	controlActive: string;
+	/** Estimate line colours, one per tau group, ordered shortest maturity first. */
+	series: readonly [string, string, string];
+	/** Opacity of the confidence bands. Light backgrounds need more. */
+	bandAlpha: number;
 }
 
+/*
+ * Two palettes rather than one, because a single set of series colours cannot
+ * clear the 3:1 contrast minimum for graphical objects against both a near-black
+ * and a white background. Measured against their own background:
+ *
+ *              dark      light (before)   light (now)
+ *   tau1       4.73:1    3.68:1           5.17:1
+ *   tau2       6.99:1    2.49:1  FAIL     3.74:1
+ *   tau3       8.10:1    8.10:1 -> 2.15:1 FAIL   5.02:1
+ *   price      3.66:1    2.56:1  FAIL     4.76:1
+ *
+ * The light values are darker shades of the same hues, so the two themes still
+ * read as the same chart.
+ */
 const DARK: PlotlyPalette = {
 	text: "#e2e8f0",
 	muted: "#94a3b8",
@@ -38,24 +56,31 @@ const DARK: PlotlyPalette = {
 	zeroLine: "rgba(226, 232, 240, 0.55)",
 	priceLine: "#64748b",
 	episodeFill: "rgba(148, 163, 184, 0.07)",
-	hoverBg: "rgba(15, 23, 42, 0.96)",
-	hoverBorder: "rgba(148, 163, 184, 0.3)",
+	hoverBg: "rgba(15, 23, 42, 0.97)",
+	hoverBorder: "rgba(148, 163, 184, 0.35)",
 	controlBg: "rgba(30, 41, 59, 0.9)",
 	controlActive: "#3b82f6",
+	series: ["#3b82f6", "#14b8a6", "#f59e0b"],
+	bandAlpha: 0.14,
 };
 
 const LIGHT: PlotlyPalette = {
 	text: "#0f172a",
-	muted: "#64748b",
+	muted: "#475569",
 	grid: "rgba(15, 23, 42, 0.08)",
-	axisLine: "rgba(15, 23, 42, 0.2)",
+	axisLine: "rgba(15, 23, 42, 0.22)",
 	zeroLine: "rgba(15, 23, 42, 0.45)",
-	priceLine: "#94a3b8",
+	// 4.76:1 on white. Clears the 3:1 minimum while staying recessive: the spot
+	// price is context for the estimates, not the subject of the chart.
+	priceLine: "#64748b",
 	episodeFill: "rgba(15, 23, 42, 0.05)",
-	hoverBg: "rgba(255, 255, 255, 0.97)",
-	hoverBorder: "rgba(15, 23, 42, 0.15)",
-	controlBg: "rgba(241, 245, 249, 0.9)",
-	controlActive: "#3b82f6",
+	hoverBg: "rgba(255, 255, 255, 0.98)",
+	hoverBorder: "rgba(15, 23, 42, 0.22)",
+	controlBg: "rgba(241, 245, 249, 0.95)",
+	controlActive: "#2563eb",
+	series: ["#2563eb", "#0d9488", "#b45309"],
+	// A 14% tint that reads on near-black washes out on white.
+	bandAlpha: 0.2,
 };
 
 const FONT_STACK =
@@ -161,6 +186,7 @@ export function usePlotlyTheme(theme: string) {
 		palette,
 		baseLayout,
 		baseConfig,
+		isDark,
 		ready: Plot !== null,
 	};
 }

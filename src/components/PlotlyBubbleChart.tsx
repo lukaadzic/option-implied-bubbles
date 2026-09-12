@@ -7,7 +7,6 @@ import {
 	type ChartDataPoint,
 	MARKET_EPISODES,
 	type OptionType,
-	TAU_COLORS,
 	type TauGroupInfo,
 	bubblePercent,
 } from "../types/bubbleData";
@@ -26,7 +25,6 @@ interface PlotlyBubbleChartProps {
 }
 
 const TAU_KEYS = ["tau1", "tau2", "tau3"] as const;
-const TAU_COLOR_LIST = [TAU_COLORS.tau1, TAU_COLORS.tau2, TAU_COLORS.tau3];
 const DASHES = ["solid", "dash", "dashdot"] as const;
 
 /** Adds an alpha channel to a #rrggbb colour. */
@@ -35,12 +33,25 @@ function withAlpha(hex: string, alpha: number) {
 	return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
-/** Labels a maturity group from its metadata, e.g. "τ ≈ 0.25y (3m)". */
+/** Full label for the legend, e.g. "τ ≈ 0.25y (3m) · 0.15-0.35y". */
 function tauLabel(group: TauGroupInfo | undefined, fallbackMean: number) {
 	const mean = group?.mean ?? fallbackMean;
 	const months = Math.round(mean * 12);
 	const range = group?.range ? ` · ${group.range}y` : "";
 	return `τ ≈ ${mean}y (${months}m)${range}`;
+}
+
+/**
+ * Short label for a hover row, e.g. "3m".
+ *
+ * The unified tooltip has room for a colour swatch and a number, and the legend
+ * label is far too long to sit next to one. Without this every row was a bare
+ * number and the only way to tell the three maturities apart was to match the
+ * swatch against the legend at the bottom of the chart.
+ */
+function tauShortLabel(group: TauGroupInfo | undefined, fallbackMean: number) {
+	const mean = group?.mean ?? fallbackMean;
+	return `${Math.round(mean * 12)}m`;
 }
 
 export const PlotlyBubbleChart = React.memo(function PlotlyBubbleChart({
@@ -71,7 +82,7 @@ export const PlotlyBubbleChart = React.memo(function PlotlyBubbleChart({
 			asPercent ? bubblePercent(value, price) : value;
 
 		const bands = TAU_KEYS.flatMap((key, i) => {
-			const colour = TAU_COLOR_LIST[i];
+			const colour = palette.series[i];
 			return [
 				{
 					x: dates,
@@ -89,8 +100,9 @@ export const PlotlyBubbleChart = React.memo(function PlotlyBubbleChart({
 					type: "scatter" as const,
 					mode: "lines" as const,
 					fill: "tonexty" as const,
-					// Light enough that three overlapping bands stay readable.
-					fillcolor: withAlpha(colour, 0.14),
+					// Light enough that three overlapping bands stay readable, but
+					// theme-dependent: a tint that reads on near-black vanishes on white.
+					fillcolor: withAlpha(colour, palette.bandAlpha),
 					line: { color: "transparent", width: 0 },
 					showlegend: false,
 					hoverinfo: "skip" as const,
@@ -107,7 +119,7 @@ export const PlotlyBubbleChart = React.memo(function PlotlyBubbleChart({
 			name: tauLabel(tauGroups[i], [0.25, 0.5, 1][i]),
 			legendgroup: key,
 			line: {
-				color: TAU_COLOR_LIST[i],
+				color: palette.series[i],
 				width: 1.8,
 				dash: DASHES[i],
 				shape: "linear" as const,
@@ -116,11 +128,9 @@ export const PlotlyBubbleChart = React.memo(function PlotlyBubbleChart({
 				rescale(d[key].lb, d.stockPrice),
 				rescale(d[key].ub, d.stockPrice),
 			]),
-			// x unified mode prints the date once as a header, so each row only
-			// carries its own value and interval.
-			hovertemplate: asPercent
-				? "%{y:.2f}%  <span style='opacity:.6'>[%{customdata[0]:.2f}, %{customdata[1]:.2f}]</span><extra></extra>"
-				: "%{y:.2f}  <span style='opacity:.6'>[%{customdata[0]:.2f}, %{customdata[1]:.2f}]</span><extra></extra>",
+			// x unified prints the date once as a header, so each row carries its
+			// own maturity label, value and interval and nothing else.
+			hovertemplate: `<b>${tauShortLabel(tauGroups[i], [0.25, 0.5, 1][i])}</b>  %{y:.2f}${asPercent ? "%" : ""}  [%{customdata[0]:.2f}, %{customdata[1]:.2f}]<extra></extra>`,
 		}));
 
 		const price = {
@@ -129,15 +139,15 @@ export const PlotlyBubbleChart = React.memo(function PlotlyBubbleChart({
 			type: "scatter" as const,
 			mode: "lines" as const,
 			name: "Spot price",
-			line: { color: palette.priceLine, width: 1.2 },
+			line: { color: palette.priceLine, width: 1.4 },
 			connectgaps: false,
 			yaxis: "y2",
-			hovertemplate: "%{y:,.2f}<extra></extra>",
+			hovertemplate: "<b>Spot</b>  %{y:,.2f}<extra></extra>",
 		};
 
 		// Order matters: bands are drawn first so the estimate lines sit on top.
 		return [...bands, ...lines, price];
-	}, [data, tauGroups, asPercent, palette.priceLine]);
+	}, [data, tauGroups, asPercent, palette]);
 
 	const layout = useMemo(() => {
 		// Shade known run-ups so an estimated bubble can be read against a

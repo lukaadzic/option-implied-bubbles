@@ -37,16 +37,30 @@ interface CrossAssetHeatmapProps {
 /**
  * Diverging scale centred on zero. Blue below fundamental value, amber above,
  * near-neutral in the middle so ordinary readings recede and the extremes carry
- * the chart. Matching the estimate lines' amber keeps one visual language.
+ * the chart.
+ *
+ * Two of them, because the midpoint has to differ from the page background or
+ * "no bubble" cells read as holes in the grid rather than as neutral readings.
+ * On white that means a light grey midpoint; on near-black, a dark one.
  */
-const COLORSCALE: [number, string][] = [
+const COLORSCALE_DARK: [number, string][] = [
 	[0, "#0c4a6e"],
-	[0.25, "#0ea5e9"],
-	[0.45, "#bae6fd"],
-	[0.5, "#f1f5f9"],
-	[0.55, "#fde68a"],
-	[0.75, "#f59e0b"],
+	[0.2, "#0ea5e9"],
+	[0.4, "#7dd3fc"],
+	[0.5, "#334155"],
+	[0.6, "#fcd34d"],
+	[0.8, "#f59e0b"],
 	[1, "#b45309"],
+];
+
+const COLORSCALE_LIGHT: [number, string][] = [
+	[0, "#0c4a6e"],
+	[0.2, "#0284c7"],
+	[0.4, "#bae6fd"],
+	[0.5, "#eef2f6"],
+	[0.6, "#fde68a"],
+	[0.8, "#d97706"],
+	[1, "#92400e"],
 ];
 
 /** Symmetric cap so the colour scale stays centred on zero. */
@@ -86,7 +100,7 @@ export function CrossAssetHeatmap({
 	onSelectStock,
 }: CrossAssetHeatmapProps) {
 	const { theme } = useTheme();
-	const { Plot, palette, baseConfig, ready } = usePlotlyTheme(theme);
+	const { Plot, palette, baseConfig, ready, isDark } = usePlotlyTheme(theme);
 	const [payload, setPayload] = useState<CrossAssetPayload | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [tauIndex, setTauIndex] = useState(2);
@@ -135,7 +149,7 @@ export function CrossAssetHeatmap({
 					x: payload.months,
 					y: rows.map((r) => r.stock),
 					z: rows.map((r) => r.values),
-					colorscale: COLORSCALE,
+					colorscale: isDark ? COLORSCALE_DARK : COLORSCALE_LIGHT,
 					zmid: 0,
 					zmin: -CAP_PERCENT,
 					zmax: CAP_PERCENT,
@@ -201,7 +215,7 @@ export function CrossAssetHeatmap({
 			},
 			rows,
 		};
-	}, [payload, tauIndex, palette]);
+	}, [payload, tauIndex, palette, isDark]);
 
 	const horizonLabel = (i: number) => {
 		const mean = tauGroups[i]?.mean ?? [0.25, 0.5, 1][i];

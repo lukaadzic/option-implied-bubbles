@@ -48,8 +48,11 @@ export const PriceDifferenceChart = React.memo(function PriceDifferenceChart({
 			type: "scatter" as const,
 			mode: "lines" as const,
 			name: "Split-adjusted",
-			line: { color: "#f59e0b", width: 1.6 },
-			hovertemplate: "%{y:,.2f}<extra></extra>",
+			// From the shared palette, so this chart clears the same 3:1 contrast
+			// minimum as the others in both themes. It used to be a hardcoded
+			// #f59e0b, which is 2.15:1 on white.
+			line: { color: palette.series[2], width: 1.6 },
+			hovertemplate: "<b>Split-adjusted</b>  %{y:,.2f}<extra></extra>",
 		};
 
 		if (identical) return [adjusted];
@@ -61,12 +64,12 @@ export const PriceDifferenceChart = React.memo(function PriceDifferenceChart({
 				type: "scatter" as const,
 				mode: "lines" as const,
 				name: "Raw (as traded)",
-				line: { color: "#3b82f6", width: 1.6 },
-				hovertemplate: "%{y:,.2f}<extra></extra>",
+				line: { color: palette.series[0], width: 1.6 },
+				hovertemplate: "<b>Raw</b>  %{y:,.2f}<extra></extra>",
 			},
 			adjusted,
 		];
-	}, [data, identical]);
+	}, [data, identical, palette]);
 
 	const layout = useMemo(
 		() => ({
