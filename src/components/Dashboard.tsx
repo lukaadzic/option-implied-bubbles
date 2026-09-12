@@ -164,7 +164,7 @@ export function Dashboard() {
 					</p>
 					<p className="mt-1">
 						<a
-							href="https://github.com/lukaadzic/financial-bubble-detection-dashboard"
+							href="https://github.com/lukaadzic/option-implied-bubbles"
 							target="_blank"
 							rel="noreferrer"
 							className="underline underline-offset-4 hover:text-foreground"

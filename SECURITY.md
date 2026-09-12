@@ -22,7 +22,7 @@ about visitors. The realistic security surface is small.
 
 ## How to report
 
-Use GitHub's [private vulnerability reporting](https://github.com/lukaadzic/financial-bubble-detection-dashboard/security/advisories/new)
+Use GitHub's [private vulnerability reporting](https://github.com/lukaadzic/option-implied-bubbles/security/advisories/new)
 rather than opening a public issue. Include what you did and what happened. A
 proof of concept is welcome but not required.
 

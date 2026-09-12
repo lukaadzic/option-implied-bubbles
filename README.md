@@ -20,7 +20,7 @@ implementing the estimator from <a href="https://doi.org/10.1002/jae.2862">Jarro
 </p>
 
 <p>
-<a href="https://github.com/lukaadzic/financial-bubble-detection-dashboard/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/lukaadzic/financial-bubble-detection-dashboard/actions/workflows/ci.yml/badge.svg"/></a>
+<a href="https://github.com/lukaadzic/option-implied-bubbles/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/lukaadzic/option-implied-bubbles/actions/workflows/ci.yml/badge.svg"/></a>
 <img alt="Estimator tests" src="https://img.shields.io/badge/estimator%20tests-26%20passing-brightgreen"/>
 <img alt="Interval coverage" src="https://img.shields.io/badge/interval%20coverage-94.5%25-brightgreen"/>
 <a href="https://doi.org/10.1002/jae.2862"><img alt="Paper" src="https://img.shields.io/badge/method-Jarrow%20%26%20Kwok%202021-b31b1b"/></a>
@@ -29,6 +29,30 @@ implementing the estimator from <a href="https://doi.org/10.1002/jae.2862">Jarro
 </p>
 
 </div>
+
+<div align="center">
+  <img src="docs/images/dashboard.png" alt="The dashboard showing the S&P 500 at a 2.14% bubble as of August 2023, with the cross-asset panel below" width="900"/>
+</div>
+
+---
+
+## In one screen
+
+**The method.** A bubble is the gap between what an asset trades for and what it is worth. This reads the second number off the option market instead of assuming a model for it, so there is no filter to tune and no dynamics to argue about. One day's option cross-section gives one estimate, with a confidence interval that comes from how much the strikes disagree.
+
+**What it covers.** 27 assets, 1996&ndash;2023, roughly 7,000 trading days each, three maturity horizons, put / call / combined estimators, with confidence intervals throughout.
+
+**What the data says.**
+
+| | |
+|---|---|
+| **The 2006&ndash;07 pre-GFC run-up** reads **+1.28% of index at τ≈1y** and **+0.15% at τ≈0.25y** | The horizon you pick decides whether you see the crisis coming at all |
+| **Amazon's peak 12-month reading ends 13 Mar 2000** | Three days after the Nasdaq topped. Cisco and Intel peak that July, Tesla and AMD in 2021. Nothing is fitted to those dates. |
+| **High readings precede *higher* returns**, not lower | Matches the paper's ride-the-bubble result &mdash; and the repo says plainly why its own sample cannot prove it (n=27, p=0.39) |
+
+**Is the estimator right?** Validated against synthetic surfaces with a bubble injected by construction. Over 2,000 trials: **bias −0.0003** on a true value of 2.00, and **94.5% coverage** on nominal 95% intervals. 26 tests, run in CI.
+
+**Provenance.** Estimates produced as a research assistant to Dr Simon Kwok (University of Sydney), who developed the method with Prof. Robert Jarrow (Cornell). Published in the *Journal of Applied Econometrics*.
 
 ---
 
@@ -115,8 +139,8 @@ This repository is the visualization and an independent reference implementation
 Nothing to configure. The dashboard reads from a public, read-only blob store.
 
 ```bash
-git clone https://github.com/lukaadzic/financial-bubble-detection-dashboard
-cd financial-bubble-detection-dashboard
+git clone https://github.com/lukaadzic/option-implied-bubbles
+cd option-implied-bubbles
 bun install
 bun run dev            # http://localhost:3000
 ```
@@ -208,7 +232,7 @@ Coverage is the number that matters. An estimator that returns plausible values 
 
 ## Known limitations
 
-Documented rather than quietly hidden. Several are [open issues](https://github.com/lukaadzic/financial-bubble-detection-dashboard/issues) looking for a contributor.
+Documented rather than quietly hidden. Several are [open issues](https://github.com/lukaadzic/option-implied-bubbles/issues) looking for a contributor.
 
 **Payload size.** Each per-asset file is roughly 12MB and served uncompressed, so switching assets means a 12MB download. This is the largest single problem in the repository.
 
@@ -228,9 +252,9 @@ Contributions are welcome, including from people who have never touched option p
 
 Good places to start:
 
-- [`good first issue`](https://github.com/lukaadzic/financial-bubble-detection-dashboard/labels/good%20first%20issue) &mdash; scoped and self-contained, with pointers to the exact files
-- [`help wanted`](https://github.com/lukaadzic/financial-bubble-detection-dashboard/labels/help%20wanted) &mdash; larger pieces that need an owner
-- [Discussions](https://github.com/lukaadzic/financial-bubble-detection-dashboard/discussions) &mdash; questions about the method, or ideas before they become issues
+- [`good first issue`](https://github.com/lukaadzic/option-implied-bubbles/labels/good%20first%20issue) &mdash; scoped and self-contained, with pointers to the exact files
+- [`help wanted`](https://github.com/lukaadzic/option-implied-bubbles/labels/help%20wanted) &mdash; larger pieces that need an owner
+- [Discussions](https://github.com/lukaadzic/option-implied-bubbles/discussions) &mdash; questions about the method, or ideas before they become issues
 
 Every pull request runs lint, typecheck, build and the Python test suite. `bun run check --write` fixes most formatting complaints on its own.
 

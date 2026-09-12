@@ -9,7 +9,7 @@ authors:
     given-names: Luka
     affiliation: University of Pennsylvania
 repository-code: >-
-  https://github.com/lukaadzic/financial-bubble-detection-dashboard
+  https://github.com/lukaadzic/option-implied-bubbles
 url: https://financial-bubble.vercel.app
 abstract: >-
   An interactive dashboard and reference estimator for option-implied financial
