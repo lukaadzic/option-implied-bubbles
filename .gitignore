@@ -8,3 +8,7 @@ count.txt
 .nitro
 .tanstack
 .gstack/
+.venv
+__pycache__/
+*.py[cod]
+.pytest_cache/

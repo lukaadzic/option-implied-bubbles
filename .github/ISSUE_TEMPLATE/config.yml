@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions about the method itself
+    url: https://doi.org/10.1002/jae.2862
+    about: The underlying paper (Jarrow & Kwok, 2021) answers most of these.
