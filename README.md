@@ -97,7 +97,7 @@ The estimator is independent of the dashboard:
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r research/requirements.txt
-pytest research -q     # 25 tests, ~0.4s
+pytest research -q     # 26 tests, under a second
 ```
 
 ## The estimator

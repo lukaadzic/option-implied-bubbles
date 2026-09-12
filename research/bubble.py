@@ -193,7 +193,17 @@ def _interval(
     mu = float(np.mean(values))
 
     if n < 2:
-        return BubbleEstimate(mu, mu, mu, n, spot - mu)
+        # One strike gives a point estimate but no way to measure dispersion.
+        # Returning a zero-width interval here would make `significant` true
+        # for any non-zero estimate, which is exactly backwards: a single
+        # observation is never evidence that a reading differs from zero.
+        return BubbleEstimate(
+            mu=mu,
+            lb=float("-inf"),
+            ub=float("inf"),
+            n_strikes=n,
+            fundamental=spot - mu,
+        )
 
     # ddof=1: the sample mean is estimated from the same data.
     se = float(np.std(values, ddof=1) / np.sqrt(n))
