@@ -1,5 +1,5 @@
 {
-  "name": "financial-bubble-detection-dashboard",
+  "name": "option-implied-bubbles",
   "private": true,
   "type": "module",
   "scripts": {
@@ -64,6 +64,6 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lukaadzic/financial-bubble-detection-dashboard.git"
+    "url": "https://github.com/lukaadzic/option-implied-bubbles.git"
   }
 }

@@ -78,6 +78,6 @@ be false.
 
 ## Suggesting something
 
-Open a [discussion](https://github.com/lukaadzic/financial-bubble-detection-dashboard/discussions)
+Open a [discussion](https://github.com/lukaadzic/option-implied-bubbles/discussions)
 rather than an issue if it is a direction rather than a task. Issues are for
 work someone could start this week.

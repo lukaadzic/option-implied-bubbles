@@ -14,8 +14,8 @@ The dashboard needs [Bun](https://bun.sh). The estimator needs Python 3.11+.
 Neither depends on the other, so install only the half you plan to work on.
 
 ```bash
-git clone https://github.com/lukaadzic/financial-bubble-detection-dashboard
-cd financial-bubble-detection-dashboard
+git clone https://github.com/lukaadzic/option-implied-bubbles
+cd option-implied-bubbles
 
 # Dashboard
 bun install
@@ -50,10 +50,10 @@ catches.
 
 ## What to work on
 
-The [issue tracker](https://github.com/lukaadzic/financial-bubble-detection-dashboard/issues)
+The [issue tracker](https://github.com/lukaadzic/option-implied-bubbles/issues)
 is the live list, and every issue says which files to touch and how to check the
-result. [`good first issue`](https://github.com/lukaadzic/financial-bubble-detection-dashboard/labels/good%20first%20issue)
-is scoped and self-contained; [`help wanted`](https://github.com/lukaadzic/financial-bubble-detection-dashboard/labels/help%20wanted)
+result. [`good first issue`](https://github.com/lukaadzic/option-implied-bubbles/labels/good%20first%20issue)
+is scoped and self-contained; [`help wanted`](https://github.com/lukaadzic/option-implied-bubbles/labels/help%20wanted)
 is larger and needs an owner. [ROADMAP.md](ROADMAP.md) has the longer arc and
 says what is deliberately out of scope.
 
@@ -118,7 +118,7 @@ adding raw option data.
 
 ## Getting help
 
-If you are stuck, open a [discussion](https://github.com/lukaadzic/financial-bubble-detection-dashboard/discussions)
+If you are stuck, open a [discussion](https://github.com/lukaadzic/option-implied-bubbles/discussions)
 rather than sitting on it. Questions about what a chart means or why the
 estimator does something are useful signal: they usually mean the docs are
 wrong, not the reader.

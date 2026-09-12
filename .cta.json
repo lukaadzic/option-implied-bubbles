@@ -1,5 +1,5 @@
 {
-  "projectName": "financial-bubble-detection-dashboard",
+  "projectName": "option-implied-bubbles",
   "mode": "file-router",
   "typescript": true,
   "tailwind": true,
