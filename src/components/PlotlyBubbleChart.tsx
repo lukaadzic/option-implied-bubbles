@@ -2,320 +2,264 @@ import { useTheme } from "@/components/theme-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import React, { useMemo } from "react";
 import { InlineMath } from "react-katex";
-import Plot from "react-plotly.js";
 import {
+	type BubbleScale,
 	type ChartDataPoint,
+	MARKET_EPISODES,
 	type OptionType,
 	TAU_COLORS,
+	type TauGroupInfo,
+	bubblePercent,
 } from "../types/bubbleData";
 import { LoadingSpinner } from "./LoadingSpinner";
+import { usePlotlyTheme } from "./usePlotlyTheme";
 
 interface PlotlyBubbleChartProps {
 	data: ChartDataPoint[];
 	optionType: OptionType;
 	title: string;
+	description: string;
 	mathExpression?: string;
-	tauGroupsInfo: { mean: number }[];
+	tauGroups: TauGroupInfo[];
+	scale: BubbleScale;
 	loading?: boolean;
+}
+
+const TAU_KEYS = ["tau1", "tau2", "tau3"] as const;
+const TAU_COLOR_LIST = [TAU_COLORS.tau1, TAU_COLORS.tau2, TAU_COLORS.tau3];
+const DASHES = ["solid", "dash", "dashdot"] as const;
+
+/** Adds an alpha channel to a #rrggbb colour. */
+function withAlpha(hex: string, alpha: number) {
+	const n = Number.parseInt(hex.slice(1), 16);
+	return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+/** Labels a maturity group from its metadata, e.g. "τ ≈ 0.25y (3m)". */
+function tauLabel(group: TauGroupInfo | undefined, fallbackMean: number) {
+	const mean = group?.mean ?? fallbackMean;
+	const months = Math.round(mean * 12);
+	const range = group?.range ? ` · ${group.range}y` : "";
+	return `τ ≈ ${mean}y (${months}m)${range}`;
 }
 
 export const PlotlyBubbleChart = React.memo(function PlotlyBubbleChart({
 	data,
 	optionType,
 	title,
+	description,
 	mathExpression,
-	tauGroupsInfo,
+	tauGroups,
+	scale,
 	loading,
 }: PlotlyBubbleChartProps) {
 	const { theme } = useTheme();
+	const { Plot, palette, baseLayout, baseConfig, ready } =
+		usePlotlyTheme(theme);
+
+	const asPercent = scale === "percent";
+
 	const plotData = useMemo(() => {
-		if (!data || data.length === 0) {
-			return [];
-		}
+		if (!data.length) return [];
 
 		const dates = data.map((d) => d.date);
-		const stockPrices = data.map((d) => d.stockPrice);
+		// In percent mode every estimate is divided by that day's spot price, so
+		// a 1996 reading and a 2023 reading sit on the same axis. Observations
+		// where that ratio is not meaningful come back null, which plotly draws
+		// as a gap rather than as a spike.
+		const rescale = (value: number, price: number): number | null =>
+			asPercent ? bubblePercent(value, price) : value;
 
-		// Prepare bubble estimate data for each tau group
-		const tau1Estimates = data.map((d) => d.tau1.mu);
-		const tau2Estimates = data.map((d) => d.tau2.mu);
-		const tau3Estimates = data.map((d) => d.tau3.mu);
+		const bands = TAU_KEYS.flatMap((key, i) => {
+			const colour = TAU_COLOR_LIST[i];
+			return [
+				{
+					x: dates,
+					y: data.map((d) => rescale(d[key].lb, d.stockPrice)),
+					type: "scatter" as const,
+					mode: "lines" as const,
+					line: { color: "transparent", width: 0 },
+					showlegend: false,
+					hoverinfo: "skip" as const,
+					legendgroup: key,
+				},
+				{
+					x: dates,
+					y: data.map((d) => rescale(d[key].ub, d.stockPrice)),
+					type: "scatter" as const,
+					mode: "lines" as const,
+					fill: "tonexty" as const,
+					// Light enough that three overlapping bands stay readable.
+					fillcolor: withAlpha(colour, 0.14),
+					line: { color: "transparent", width: 0 },
+					showlegend: false,
+					hoverinfo: "skip" as const,
+					legendgroup: key,
+				},
+			];
+		});
 
-		// Prepare confidence band data
-		const tau1Upper = data.map((d) => d.tau1.ub);
-		const tau1Lower = data.map((d) => d.tau1.lb);
-		const tau2Upper = data.map((d) => d.tau2.ub);
-		const tau2Lower = data.map((d) => d.tau2.lb);
-		const tau3Upper = data.map((d) => d.tau3.ub);
-		const tau3Lower = data.map((d) => d.tau3.lb);
+		const lines = TAU_KEYS.map((key, i) => ({
+			x: dates,
+			y: data.map((d) => rescale(d[key].mu, d.stockPrice)),
+			type: "scatter" as const,
+			mode: "lines" as const,
+			name: tauLabel(tauGroups[i], [0.25, 0.5, 1][i]),
+			legendgroup: key,
+			line: {
+				color: TAU_COLOR_LIST[i],
+				width: 1.8,
+				dash: DASHES[i],
+				shape: "linear" as const,
+			},
+			customdata: data.map((d) => [
+				rescale(d[key].lb, d.stockPrice),
+				rescale(d[key].ub, d.stockPrice),
+			]),
+			// x unified mode prints the date once as a header, so each row only
+			// carries its own value and interval.
+			hovertemplate: asPercent
+				? "%{y:.2f}%  <span style='opacity:.6'>[%{customdata[0]:.2f}, %{customdata[1]:.2f}]</span><extra></extra>"
+				: "%{y:.2f}  <span style='opacity:.6'>[%{customdata[0]:.2f}, %{customdata[1]:.2f}]</span><extra></extra>",
+		}));
 
-		return [
-			// Tau Group 1 confidence band (lower bound first, then upper with fill)
-			{
-				x: dates,
-				y: tau1Lower,
-				line: { color: "transparent" },
-				name: "CI τ1 lower",
-				showlegend: false,
-				hoverinfo: "skip",
-				yaxis: "y",
-			},
-			{
-				x: dates,
-				y: tau1Upper,
-				fill: "tonexty",
-				fillcolor: "rgba(31, 119, 180, 0.3)",
-				line: { color: "transparent" },
-				name: "CI τ1",
-				showlegend: true,
-				hoverinfo: "skip",
-				yaxis: "y",
-			},
-			// Tau Group 2 confidence band (lower bound first, then upper with fill)
-			{
-				x: dates,
-				y: tau2Lower,
-				line: { color: "transparent" },
-				name: "CI τ2 lower",
-				showlegend: false,
-				hoverinfo: "skip",
-				yaxis: "y",
-			},
-			{
-				x: dates,
-				y: tau2Upper,
-				fill: "tonexty",
-				fillcolor: "rgba(44, 160, 44, 0.3)",
-				line: { color: "transparent" },
-				name: "CI τ2",
-				showlegend: true,
-				hoverinfo: "skip",
-				yaxis: "y",
-			},
-			// Tau Group 3 confidence band (lower bound first, then upper with fill)
-			{
-				x: dates,
-				y: tau3Lower,
-				line: { color: "transparent" },
-				name: "CI τ3 lower",
-				showlegend: false,
-				hoverinfo: "skip",
-				yaxis: "y",
-			},
-			{
-				x: dates,
-				y: tau3Upper,
-				fill: "tonexty",
-				fillcolor: "rgba(255, 127, 14, 0.3)",
-				line: { color: "transparent" },
-				name: "CI τ3",
-				showlegend: true,
-				hoverinfo: "skip",
-				yaxis: "y",
-			},
-			// Tau Group 1 main line
-			{
-				x: dates,
-				y: tau1Estimates,
-				type: "scatter" as const,
-				mode: "lines" as const,
-				name: `τ ∈ (${tauGroupsInfo[0]?.mean || 0.25}±0.1)`,
-				line: {
-					color: TAU_COLORS.tau1,
-					width: 2,
-				},
-				yaxis: "y",
-				customdata: data.map((d) => [d.tau1.lb, d.tau1.ub]),
-				hovertemplate:
-					"<b style='font-size: 14px; color: #3b82f6;'>🔵 %{fullData.name}</b><br>" +
-					"<span style='color: #6b7280;'>📅 Date:</span> <b>%{x|%B %d, %Y}</b><br>" +
-					"<span style='color: #6b7280;'>📊 Estimate:</span> <b class='value'>%{y:.4f}</b><br>" +
-					"<span style='color: #6b7280;'>📏 Confidence Interval:</span><br>" +
-					"<span style='margin-left: 8px; font-family: monospace;'>[%{customdata[0]:.4f}, %{customdata[1]:.4f}]</span><br>" +
-					"<extra></extra>",
-			},
-			// Tau Group 2 main line
-			{
-				x: dates,
-				y: tau2Estimates,
-				type: "scatter" as const,
-				mode: "lines" as const,
-				name: `τ ∈ (${tauGroupsInfo[1]?.mean || 0.5}±0.15)`,
-				line: {
-					color: TAU_COLORS.tau2,
-					width: 2,
-					dash: "dash" as const,
-				},
-				yaxis: "y",
-				customdata: data.map((d) => [d.tau2.lb, d.tau2.ub]),
-				hovertemplate:
-					"<b style='font-size: 14px; color: #10b981;'>🟢 %{fullData.name}</b><br>" +
-					"<span style='color: #6b7280;'>📅 Date:</span> <b>%{x|%B %d, %Y}</b><br>" +
-					"<span style='color: #6b7280;'>📊 Estimate:</span> <b class='value'>%{y:.4f}</b><br>" +
-					"<span style='color: #6b7280;'>📏 Confidence Interval:</span><br>" +
-					"<span style='margin-left: 8px; font-family: monospace;'>[%{customdata[0]:.4f}, %{customdata[1]:.4f}]</span><br>" +
-					"<extra></extra>",
-			},
-			// Tau Group 3 main line
-			{
-				x: dates,
-				y: tau3Estimates,
-				type: "scatter" as const,
-				mode: "lines" as const,
-				name: `τ ∈ (${tauGroupsInfo[2]?.mean || 1.0}±0.25)`,
-				line: {
-					color: TAU_COLORS.tau3,
-					width: 2,
-					dash: "dashdot" as const,
-				},
-				yaxis: "y",
-				customdata: data.map((d) => [d.tau3.lb, d.tau3.ub]),
-				hovertemplate:
-					"<b style='font-size: 14px; color: #f59e0b;'>🟡 %{fullData.name}</b><br>" +
-					"<span style='color: #6b7280;'>📅 Date:</span> <b>%{x|%B %d, %Y}</b><br>" +
-					"<span style='color: #6b7280;'>📊 Estimate:</span> <b class='value'>%{y:.4f}</b><br>" +
-					"<span style='color: #6b7280;'>📏 Confidence Interval:</span><br>" +
-					"<span style='margin-left: 8px; font-family: monospace;'>[%{customdata[0]:.4f}, %{customdata[1]:.4f}]</span><br>" +
-					"<extra></extra>",
-			},
-			// Stock Price line
-			{
-				x: dates,
-				y: stockPrices,
-				type: "scatter" as const,
-				mode: "lines" as const,
-				name: "Adjusted Price",
-				line: {
-					color: TAU_COLORS.stockPrice,
-					width: 2,
-				},
-				yaxis: "y2",
-				hovertemplate:
-					"<b style='font-size: 14px; color: #dc2626;'>💰 %{fullData.name}</b><br>" +
-					"<span style='color: #6b7280;'>📅 Date:</span> <b>%{x|%B %d, %Y}</b><br>" +
-					"<span style='color: #6b7280;'>💵 Stock Price:</span> <b class='value' style='color: #dc2626;'>%{y:.2f}</b><br>" +
-					"<extra></extra>",
-			},
-		];
-	}, [data, tauGroupsInfo]);
+		const price = {
+			x: dates,
+			y: data.map((d) => d.stockPrice),
+			type: "scatter" as const,
+			mode: "lines" as const,
+			name: "Spot price",
+			line: { color: palette.priceLine, width: 1.2 },
+			connectgaps: false,
+			yaxis: "y2",
+			hovertemplate: "%{y:,.2f}<extra></extra>",
+		};
 
-	const layout = useMemo(
-		() => ({
-			title: {
-				text: "",
-			},
-			paper_bgcolor: "transparent",
-			plot_bgcolor: "transparent",
-			font: {
-				color: theme === "dark" ? "#ffffff" : "#000000",
-			},
+		// Order matters: bands are drawn first so the estimate lines sit on top.
+		return [...bands, ...lines, price];
+	}, [data, tauGroups, asPercent, palette.priceLine]);
+
+	const layout = useMemo(() => {
+		// Shade known run-ups so an estimated bubble can be read against a
+		// remembered one without leaving the chart.
+		const episodes = MARKET_EPISODES.map((episode) => ({
+			type: "rect" as const,
+			xref: "x" as const,
+			yref: "paper" as const,
+			x0: episode.start,
+			x1: episode.end,
+			y0: 0,
+			y1: 1,
+			fillcolor: palette.episodeFill,
+			line: { width: 0 },
+			layer: "below" as const,
+		}));
+
+		const episodeLabels = MARKET_EPISODES.map((episode) => ({
+			x: episode.start,
+			y: 1,
+			xref: "x" as const,
+			yref: "paper" as const,
+			text: episode.label,
+			showarrow: false,
+			xanchor: "left" as const,
+			yanchor: "bottom" as const,
+			font: { size: 10, color: palette.muted },
+		}));
+
+		return {
+			...baseLayout,
+			shapes: episodes,
+			annotations: episodeLabels,
 			xaxis: {
-				title: {
-					text: "Date",
-				},
+				...baseLayout.xaxis,
+				title: { text: "", font: { color: palette.text } },
 				type: "date" as const,
-				gridcolor: theme === "dark" ? "#404040" : "#e0e0e0",
-				linecolor: theme === "dark" ? "#666666" : "#cccccc",
-				tickcolor: theme === "dark" ? "#666666" : "#cccccc",
-				titlefont: {
-					color: theme === "dark" ? "#ffffff" : "#000000",
+				// Range selector beats hunting in the date pickers for the common
+				// "show me the last 5 years" question.
+				rangeselector: {
+					buttons: [
+						{
+							count: 1,
+							label: "1Y",
+							step: "year" as const,
+							stepmode: "backward" as const,
+						},
+						{
+							count: 5,
+							label: "5Y",
+							step: "year" as const,
+							stepmode: "backward" as const,
+						},
+						{
+							count: 10,
+							label: "10Y",
+							step: "year" as const,
+							stepmode: "backward" as const,
+						},
+						{ step: "all" as const, label: "All" },
+					],
+					bgcolor: palette.controlBg,
+					activecolor: palette.controlActive,
+					font: { color: palette.text, size: 11 },
+					x: 0,
+					y: 1.12,
 				},
-				tickfont: {
-					color: theme === "dark" ? "#ffffff" : "#000000",
-				},
-				showspikes: true,
-				spikecolor: theme === "dark" ? "#666" : "#ccc",
-				spikethickness: 1,
-				spikedash: "dot" as const,
-				spikemode: "across" as const,
 			},
 			yaxis: {
+				...baseLayout.yaxis,
 				title: {
-					text: "Bubble Estimate",
+					text: asPercent ? "Bubble (% of price)" : "Bubble (price units)",
+					font: { color: palette.text, size: 12 },
 				},
-				side: "left" as const,
-				gridcolor: theme === "dark" ? "#404040" : "#e0e0e0",
-				linecolor: theme === "dark" ? "#666666" : "#cccccc",
-				tickcolor: theme === "dark" ? "#666666" : "#cccccc",
-				titlefont: {
-					color: theme === "dark" ? "#ffffff" : "#000000",
-				},
-				tickfont: {
-					color: theme === "dark" ? "#ffffff" : "#000000",
-				},
+				// Zero is the whole story on a bubble chart: above it the market
+				// trades over fundamental value, below it under.
+				zeroline: true,
+				zerolinecolor: palette.zeroLine,
+				zerolinewidth: 1.5,
+				ticksuffix: asPercent ? "%" : "",
 			},
 			yaxis2: {
-				title: {
-					text: "Adjusted Price",
-				},
+				...baseLayout.yaxis,
+				title: { text: "Spot price", font: { color: palette.muted, size: 12 } },
 				side: "right" as const,
 				overlaying: "y" as const,
-				gridcolor: theme === "dark" ? "#404040" : "#e0e0e0",
-				linecolor: theme === "dark" ? "#666666" : "#cccccc",
-				tickcolor: theme === "dark" ? "#666666" : "#cccccc",
-				titlefont: {
-					color: theme === "dark" ? "#ffffff" : "#000000",
-				},
-				tickfont: {
-					color: theme === "dark" ? "#ffffff" : "#000000",
-				},
+				showgrid: false,
+				tickfont: { color: palette.muted, size: 11 },
 			},
-			hovermode: "x unified" as const,
-			hoverdistance: 50,
-			spikedistance: 50,
-			hoverlabel: {
-				bgcolor:
-					theme === "dark"
-						? "rgba(15, 15, 15, 0.98)"
-						: "rgba(255, 255, 255, 0.95)",
-				bordercolor: theme === "dark" ? "#444" : "#ccc",
-				font: {
-					color: theme === "dark" ? "#f0f0f0" : "#333",
-					family:
-						"-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-					size: 13,
-				},
-				align: "left" as const,
-				namelength: -1,
-			},
-
-			showlegend: true,
 			legend: {
 				orientation: "h" as const,
-				y: -0.2,
+				y: -0.18,
+				x: 0,
+				font: { color: palette.text, size: 11 },
 				bgcolor: "transparent",
-				font: {
-					color: theme === "dark" ? "#ffffff" : "#000000",
-				},
 			},
-			margin: {
-				l: 60,
-				r: 60,
-				t: 40,
-				b: 100,
-			},
-		}),
-		[theme],
+			margin: { l: 62, r: 62, t: 44, b: 72 },
+		};
+	}, [baseLayout, palette, asPercent]);
+
+	const header = (
+		<div className="mb-3">
+			<h3 className="text-base font-semibold tracking-tight flex items-center gap-2">
+				{title}
+				{mathExpression && (
+					<span className="text-muted-foreground">
+						<InlineMath math={mathExpression} />
+					</span>
+				)}
+			</h3>
+			<p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+		</div>
 	);
 
-	if (loading) {
+	if (loading || !ready) {
 		return (
 			<Card>
-				<CardContent className="p-4">
-					{/* Chart Title with KaTeX */}
-					<div className="text-center mb-4">
-						<h3 className="text-lg font-semibold mb-2">
-							{title}
-							{mathExpression && (
-								<span className="ml-2">
-									<InlineMath math={mathExpression} />
-								</span>
-							)}
-						</h3>
-					</div>
+				<CardContent className="p-5">
+					{header}
 					<LoadingSpinner
-						message={`Loading ${optionType} options bubble estimates...`}
-						className="h-96"
+						message={`Loading ${optionType} estimates…`}
+						className="h-[480px]"
 						inline
 					/>
 				</CardContent>
@@ -323,38 +267,37 @@ export const PlotlyBubbleChart = React.memo(function PlotlyBubbleChart({
 		);
 	}
 
+	if (!data.length) {
+		return (
+			<Card>
+				<CardContent className="p-5">
+					{header}
+					<div className="flex h-[480px] items-center justify-center text-sm text-muted-foreground">
+						No estimates in the selected date range.
+					</div>
+				</CardContent>
+			</Card>
+		);
+	}
+
 	return (
 		<Card>
-			<CardContent className="p-4">
-				{/* Chart Title with KaTeX */}
-				<div className="text-center mb-4">
-					<h3 className="text-lg font-semibold mb-2">
-						{title}
-						{mathExpression && (
-							<span className="ml-2">
-								<InlineMath math={mathExpression} />
-							</span>
-						)}
-					</h3>
-				</div>
-
+			<CardContent className="p-5">
+				{header}
 				<div className="plotly-chart-container">
 					<Plot
 						data={plotData}
 						layout={layout}
-						style={{ width: "100%", height: "500px" }}
+						style={{ width: "100%", height: "480px" }}
+						useResizeHandler
 						config={{
-							responsive: true,
-							displayModeBar: true,
-							modeBarButtonsToRemove: ["lasso2d", "select2d"],
-							modeBarButtonsToAdd: [],
-							displaylogo: false,
+							...baseConfig,
 							toImageButtonOptions: {
 								format: "png",
-								filename: "bubble_chart",
-								height: 500,
-								width: 1000,
-								scale: 1,
+								filename: `bubble_${optionType}`,
+								height: 600,
+								width: 1200,
+								scale: 2,
 							},
 						}}
 					/>
