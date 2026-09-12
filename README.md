@@ -38,7 +38,7 @@ A bubble is the gap between what an asset trades for and what it is worth. Every
 
 Jarrow and Kwok's method removes the argument. An asset's fundamental value is the discounted risk-neutral expectation of its future price, and the option market prices that expectation directly. You can read fundamental value off the option board instead of assuming it:
 
-$$\hat{\Pi}_t(\tau) \;=\; \underbrace{S_t}_{\text{what it trades for}} \;-\; \underbrace{e^{-r\tau}\,\mathbb{E}^{\mathbb{Q}}_t\!\left[S_{t+\tau}\right]}_{\text{what the options say it is worth}}$$
+$$\hat{\Pi}_t(\tau) = \underbrace{S_t}_{\text{what it trades for}} - \underbrace{e^{-r\tau} \mathbb{E}^{\mathbb{Q}}_t \left[ S_{t+\tau} \right]}_{\text{what the options say it is worth}}$$
 
 No time series of past prices, no assumed dynamics, no filter that needs tuning. One cross-section of option prices on one day gives one estimate, with a confidence interval that comes from the disagreement between strikes.
 
