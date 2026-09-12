@@ -4,6 +4,10 @@ Contributions are welcome, including from people who have never touched option
 pricing. The dashboard, the estimator and the docs all need different skills and
 you do not need all three.
 
+By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). The
+short version is: argue about the code and the maths, not about the person
+writing them.
+
 ## Getting set up
 
 The dashboard needs [Bun](https://bun.sh). The estimator needs Python 3.11+.
@@ -44,9 +48,19 @@ Please also load the page and look at it. The charts render from a 12MB payload
 and a lot of the failure modes here are visual rather than something a test
 catches.
 
-## Good first issues
+## What to work on
 
-Ordered roughly by how much context you need.
+The [issue tracker](https://github.com/lukaadzic/financial-bubble-detection-dashboard/issues)
+is the live list, and every issue says which files to touch and how to check the
+result. [`good first issue`](https://github.com/lukaadzic/financial-bubble-detection-dashboard/labels/good%20first%20issue)
+is scoped and self-contained; [`help wanted`](https://github.com/lukaadzic/financial-bubble-detection-dashboard/labels/help%20wanted)
+is larger and needs an owner. [ROADMAP.md](ROADMAP.md) has the longer arc and
+says what is deliberately out of scope.
+
+Comment on an issue before starting something substantial, so two people do not
+write the same patch. For anything small, just open the PR.
+
+The standing themes, roughly by how much context they need:
 
 **No finance background needed**
 
@@ -101,6 +115,13 @@ Sydney and are derived from OptionMetrics IvyDB, which is licensed. The derived
 series in the blob store can be used under this repository's licence; the
 underlying option data cannot be redistributed. Please do not open pull requests
 adding raw option data.
+
+## Getting help
+
+If you are stuck, open a [discussion](https://github.com/lukaadzic/financial-bubble-detection-dashboard/discussions)
+rather than sitting on it. Questions about what a chart means or why the
+estimator does something are useful signal: they usually mean the docs are
+wrong, not the reader.
 
 ## Reporting a problem
 
