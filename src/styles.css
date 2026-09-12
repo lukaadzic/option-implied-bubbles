@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "react-datepicker/dist/react-datepicker.css";
 @import "tw-animate-css";
 @import "katex/dist/katex.min.css";
 @import "./styles/plotly-chart.css";
@@ -18,15 +17,6 @@ body {
 code {
 	font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
 		monospace;
-}
-
-/* Custom styles for react-datepicker */
-.react-datepicker-wrapper {
-	width: auto;
-}
-
-.react-datepicker__input-container input {
-	width: 140px;
 }
 
 /* Ensure Plotly charts are responsive */

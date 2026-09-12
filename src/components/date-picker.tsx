@@ -51,8 +51,6 @@ export function DatePicker({
 
 	const { start: startMonth, end: endMonth } = getValidMonthRange();
 
-
-
 	return (
 		<Popover>
 			<PopoverTrigger asChild>
@@ -82,7 +80,11 @@ export function DatePicker({
 							return;
 						}
 
-						const targetMonth = new Date(newMonth.getFullYear(), newMonth.getMonth(), 1);
+						const targetMonth = new Date(
+							newMonth.getFullYear(),
+							newMonth.getMonth(),
+							1,
+						);
 						if (targetMonth >= startMonth && targetMonth <= endMonth) {
 							setMonth(newMonth);
 						}
