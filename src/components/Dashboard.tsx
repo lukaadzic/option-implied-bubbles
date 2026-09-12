@@ -93,7 +93,7 @@ export function Dashboard() {
 				/>
 
 				{error ? (
-					<Card>
+					<Card className="mb-5">
 						<CardContent className="flex flex-col items-center p-10 text-center">
 							<AlertTriangle className="mb-4 h-10 w-10 text-destructive" />
 							<h2 className="text-lg font-semibold">
@@ -110,20 +110,25 @@ export function Dashboard() {
 						</CardContent>
 					</Card>
 				) : (
+					<BubbleSummaryPanel
+						summary={summary}
+						stock={selectedStock}
+						tauGroup={summaryTauGroup}
+						loading={loading}
+					/>
+				)}
+
+				{/* The panel reads a local file and does not depend on the selected
+				    asset, so it stays up when that asset fails to load. It is also
+				    the fastest way back to a working one. */}
+				<CrossAssetHeatmap
+					tauGroups={tauGroups}
+					selectedStock={selectedStock}
+					onSelectStock={setSelectedStock}
+				/>
+
+				{!error && (
 					<>
-						<BubbleSummaryPanel
-							summary={summary}
-							stock={selectedStock}
-							tauGroup={summaryTauGroup}
-							loading={loading}
-						/>
-
-						<CrossAssetHeatmap
-							tauGroups={tauGroups}
-							selectedStock={selectedStock}
-							onSelectStock={setSelectedStock}
-						/>
-
 						<div className="space-y-5">
 							{CHARTS.map((chart) => (
 								<PlotlyBubbleChart
