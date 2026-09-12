@@ -171,6 +171,22 @@ def test_one_sided_bounds_tighten_with_a_wider_strike_range():
     assert wide_high.mu >= 2.0 - 1e-8
 
 
+def test_single_strike_is_never_significant():
+    """One strike cannot support a significance claim.
+
+    A zero-width interval around a non-zero estimate would report a bubble as
+    statistically significant on the strength of a single quote.
+    """
+    quotes = simulate_quotes(n_strikes=41, moneyness=(0.5, 1.5), noise_bps=0.0)
+
+    # A band narrow enough that exactly one strike survives.
+    one = estimate_bubble(quotes, moneyness_band=(0.99, 1.01))
+    assert one.n_strikes == 1
+    assert not one.significant
+    assert one.lb == float("-inf")
+    assert one.ub == float("inf")
+
+
 def test_moneyness_band_filters_strikes():
     quotes = simulate_quotes(n_strikes=41, moneyness=(0.5, 1.5), noise_bps=0.0)
 
