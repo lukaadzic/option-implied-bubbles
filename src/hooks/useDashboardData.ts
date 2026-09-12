@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
 	BubbleData,
-	ChartDataPoint,
+	BubbleScale,
 	OptionType,
-	PriceDifferenceDataPoint,
 	RegularPriceData,
 	StockCode,
 } from "../types/bubbleData";
@@ -12,6 +11,7 @@ import {
 	getDateRange,
 	loadBubbleData,
 	loadRegularPriceData,
+	summarise,
 	transformDataForChart,
 } from "../utils/dataLoader";
 
@@ -25,99 +25,83 @@ interface DashboardState {
 	error: string | null;
 }
 
+/** Maturity group behind the headline summary. Index into tau_groups_info. */
+export const SUMMARY_TAU_INDEX = 2;
+
+const INITIAL_STATE: DashboardState = {
+	selectedStock: "SPX",
+	startDate: null,
+	endDate: null,
+	bubbleData: null,
+	regularPriceData: null,
+	loading: true,
+	error: null,
+};
+
 export function useDashboardData() {
-	const [state, setState] = useState<DashboardState>({
-		selectedStock: "SPX",
-		startDate: null,
-		endDate: null,
-		bubbleData: null,
-		regularPriceData: null,
-		loading: false,
-		error: null,
-	});
+	const [state, setState] = useState<DashboardState>(INITIAL_STATE);
+	const [scale, setScale] = useState<BubbleScale>("percent");
+	const [reloadToken, setReloadToken] = useState(0);
+	const dateChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null,
+	);
 
-	// Ref to store timeout for debouncing date changes
-	const dateChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-	// Load data when stock changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reloadToken is a retry trigger, not a value read inside the effect
 	useEffect(() => {
-		let isCancelled = false;
+		let cancelled = false;
 
-		const loadData = async () => {
-			// Show loading and fetch data
+		(async () => {
 			setState((prev) => ({ ...prev, loading: true, error: null }));
 
-			try {
-				// Load both bubble data and regular price data in parallel
-				const [data, regularData] = await Promise.allSettled([
-					loadBubbleData(state.selectedStock),
-					loadRegularPriceData(state.selectedStock),
-				]);
+			const [bubble, raw] = await Promise.allSettled([
+				loadBubbleData(state.selectedStock),
+				loadRegularPriceData(state.selectedStock),
+			]);
 
-				// Check if component is still mounted and request is still valid
-				if (isCancelled) return;
+			if (cancelled) return;
 
-				// Handle bubble data result
-				if (data.status === "rejected") {
-					throw new Error(`Failed to load bubble data: ${data.reason}`);
-				}
-
-				const dateRange = getDateRange(data.value);
-
-				// Handle regular price data result (optional, don't fail if not available)
-				const regularPriceData =
-					regularData.status === "fulfilled" ? regularData.value : null;
-				if (regularData.status === "rejected") {
-					console.error(
-						`Regular price data failed to load for ${state.selectedStock}:`,
-						regularData.reason,
-					);
-				} else if (regularPriceData) {
-					console.log(
-						`Regular price data loaded successfully for ${state.selectedStock}:`,
-						{
-							count: regularPriceData.length,
-							sample: regularPriceData.slice(0, 2),
-						},
-					);
-				}
-
-				setState((prev) => ({
-					...prev,
-					bubbleData: data.value,
-					regularPriceData,
-					loading: false,
-					// Set initial date range to full range if not already set
-					startDate: prev.startDate || dateRange.min,
-					endDate: prev.endDate || dateRange.max,
-				}));
-			} catch (error) {
-				if (isCancelled) return;
-
+			if (bubble.status === "rejected") {
 				setState((prev) => ({
 					...prev,
 					loading: false,
-					error: error instanceof Error ? error.message : "Failed to load data",
+					bubbleData: null,
+					error:
+						bubble.reason instanceof Error
+							? bubble.reason.message
+							: `Could not load ${state.selectedStock}`,
 				}));
+				return;
 			}
-		};
 
-		loadData();
+			const range = getDateRange(bubble.value);
+			setState((prev) => ({
+				...prev,
+				bubbleData: bubble.value,
+				// Raw prices are a nice-to-have; a failure here only hides the
+				// split-adjustment chart.
+				regularPriceData: raw.status === "fulfilled" ? raw.value : null,
+				loading: false,
+				error: null,
+				// Reset the window whenever the asset changes, since two assets
+				// rarely share a coverage period.
+				startDate: range.min,
+				endDate: range.max,
+			}));
+		})();
 
-		// Cleanup function to cancel the request if component unmounts or stock changes
 		return () => {
-			isCancelled = true;
+			cancelled = true;
 		};
-	}, [state.selectedStock]);
+	}, [state.selectedStock, reloadToken]);
 
-	// Cleanup timeout on unmount
-	useEffect(() => {
-		return () => {
+	useEffect(
+		() => () => {
 			if (dateChangeTimeoutRef.current) {
 				clearTimeout(dateChangeTimeoutRef.current);
 			}
-		};
-	}, []);
+		},
+		[],
+	);
 
 	const setSelectedStock = useCallback((stock: StockCode) => {
 		setState((prev) => ({ ...prev, selectedStock: stock }));
@@ -125,104 +109,85 @@ export function useDashboardData() {
 
 	const setDateRange = useCallback(
 		(startDate: Date | null, endDate: Date | null) => {
-			// Clear existing timeout
 			if (dateChangeTimeoutRef.current) {
 				clearTimeout(dateChangeTimeoutRef.current);
 			}
-
-			// Debounce date changes to prevent excessive re-renders
 			dateChangeTimeoutRef.current = setTimeout(() => {
 				setState((prev) => ({ ...prev, startDate, endDate }));
-			}, 100); // 100ms debounce
+			}, 100);
 		},
 		[],
 	);
 
 	const resetDateRange = useCallback(() => {
-		if (state.bubbleData) {
-			const dateRange = getDateRange(state.bubbleData);
-			setState((prev) => ({
-				...prev,
-				startDate: dateRange.min,
-				endDate: dateRange.max,
-			}));
-		}
-	}, [state.bubbleData]);
+		setState((prev) => {
+			if (!prev.bubbleData) return prev;
+			const range = getDateRange(prev.bubbleData);
+			return { ...prev, startDate: range.min, endDate: range.max };
+		});
+	}, []);
 
-	// Memoize chart data transformations for each option type
-	const chartDataMemo = useMemo(() => {
-		if (!state.bubbleData) {
-			return {
-				put: [],
-				call: [],
-				combined: [],
-			};
-		}
+	const retry = useCallback(() => setReloadToken((n) => n + 1), []);
 
+	const { bubbleData, startDate, endDate, regularPriceData } = state;
+
+	const chartData = useMemo(() => {
+		if (!bubbleData) return { put: [], call: [], combined: [] };
+		const window = [startDate ?? undefined, endDate ?? undefined] as const;
 		return {
-			put: transformDataForChart(
-				state.bubbleData,
-				"put",
-				state.startDate || undefined,
-				state.endDate || undefined,
-			),
-			call: transformDataForChart(
-				state.bubbleData,
-				"call",
-				state.startDate || undefined,
-				state.endDate || undefined,
-			),
-			combined: transformDataForChart(
-				state.bubbleData,
-				"combined",
-				state.startDate || undefined,
-				state.endDate || undefined,
-			),
+			put: transformDataForChart(bubbleData, "put", ...window),
+			call: transformDataForChart(bubbleData, "call", ...window),
+			combined: transformDataForChart(bubbleData, "combined", ...window),
 		};
-	}, [state.bubbleData, state.startDate, state.endDate]);
+	}, [bubbleData, startDate, endDate]);
 
-	const getChartData = useCallback(
-		(optionType: OptionType): ChartDataPoint[] => {
-			return chartDataMemo[optionType];
-		},
-		[chartDataMemo],
+	// Previously recomputed on every render because it was a useCallback invoked
+	// directly in JSX; over a 7,000-point series that is a full rescan per frame.
+	const priceDifferenceData = useMemo(() => {
+		if (!bubbleData || !regularPriceData) return [];
+		return calculatePriceDifferences(
+			bubbleData,
+			regularPriceData,
+			startDate ?? undefined,
+			endDate ?? undefined,
+		);
+	}, [bubbleData, regularPriceData, startDate, endDate]);
+
+	/**
+	 * Headline reading: combined estimator at the longest maturity group. The
+	 * one-year horizon is where the historical episodes actually show up — the
+	 * 2006-07 S&P run-up reads +1.3% of index at τ ≈ 1y and +0.15% at τ ≈ 0.25y.
+	 * Must stay in step with the tau group the summary panel is labelled with.
+	 */
+	const summary = useMemo(
+		() =>
+			bubbleData ? summarise(bubbleData, "combined", SUMMARY_TAU_INDEX) : null,
+		[bubbleData],
 	);
 
-	const getPriceDifferenceData = useCallback((): PriceDifferenceDataPoint[] => {
-		if (!state.bubbleData || !state.regularPriceData) {
-			return [];
-		}
-		return calculatePriceDifferences(
-			state.bubbleData,
-			state.regularPriceData,
-			state.startDate || undefined,
-			state.endDate || undefined,
-		);
-	}, [
-		state.bubbleData,
-		state.regularPriceData,
-		state.startDate,
-		state.endDate,
-	]);
+	const availableDateRange = useMemo(
+		() => (bubbleData ? getDateRange(bubbleData) : null),
+		[bubbleData],
+	);
 
-	const getAvailableDateRange = useCallback(() => {
-		if (!state.bubbleData) return null;
-		return getDateRange(state.bubbleData);
-	}, [state.bubbleData]);
+	const getChartData = useCallback(
+		(optionType: OptionType) => chartData[optionType],
+		[chartData],
+	);
 
 	return {
-		selectedStock: state.selectedStock,
-		startDate: state.startDate,
-		endDate: state.endDate,
-		bubbleData: state.bubbleData,
-		regularPriceData: state.regularPriceData,
-		loading: state.loading,
-		error: state.error,
+		...state,
+		scale,
+		setScale,
+		summary,
+		availableDateRange,
+		priceDifferenceData,
+		tauGroups: bubbleData?.metadata.tau_groups_info ?? [],
+		summaryTauGroup: bubbleData?.metadata.tau_groups_info?.[SUMMARY_TAU_INDEX],
 		setSelectedStock,
 		setDateRange,
 		resetDateRange,
+		retry,
 		getChartData,
-		getPriceDifferenceData,
-		getAvailableDateRange,
 	};
 }
