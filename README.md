@@ -1,374 +1,268 @@
-# Financial Bubble Detection Dashboard
+<div align="center">
 
-A sophisticated web application for visualizing and analyzing financial bubble estimates using options data. This dashboard provides interactive time-series visualizations of bubble probability estimates across different time horizons (tau groups) for major stocks and indices.
+# Option-Implied Bubble Detection
 
-## 🎯 Overview
+**How far did the market trade from what the options said it was worth?**
 
-This research dashboard implements a financial bubble detection methodology that analyzes options market data to estimate the probability of asset price bubbles. The system processes put and call options data to generate bubble estimates with confidence intervals across multiple time horizons.
+Daily bubble estimates for the S&P 500 and 26 US equities, 1996–2023, built on
+the method in [Jarrow & Kwok (2021)](https://doi.org/10.1002/jae.2862).
 
-### Key Features
+[**Live dashboard →**](https://financial-bubble.vercel.app)
 
-- **Interactive Time-Series Visualization**: Dynamic Plotly charts with enhanced tooltips and dark mode support
-- **Multi-Asset Analysis**: Support for 26 major stocks and indices (SPX, AAPL, TSLA, etc.)
-- **Tau Group Analysis**: Three different time horizon groups for bubble detection (τ ≈ 0.25, 0.5, 1.0)
-- **Options Data Integration**: Separate analysis for put options, call options, and combined estimates
-- **Price Comparison Charts**: Split-adjusted vs. raw price visualization
-- **Confidence Intervals**: Statistical bounds (upper/lower) for all bubble estimates
-- **Date Range Filtering**: Customizable time period selection with date pickers
-- **Responsive Design**: Modern UI with dark/light theme support and mobile optimization
-- **Cloud Data Storage**: Vercel Blob Storage integration
+[![CI](https://github.com/lukaadzic/financial-bubble-detection-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/lukaadzic/financial-bubble-detection-dashboard/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Paper](https://img.shields.io/badge/paper-10.1002%2Fjae.2862-b31b1b.svg)](https://doi.org/10.1002/jae.2862)
 
-## 📊 Methodology
+</div>
 
-### Bubble Estimates
+---
 
-The dashboard displays bubble probability estimates with three key components:
+## What this is
 
-- **μ (mu)**: Point estimate of bubble probability
-- **lb**: Lower bound of confidence interval
-- **ub**: Upper bound of confidence interval
+A bubble is the gap between what an asset trades for and what it is worth. The
+hard part has always been the second number, because measuring it usually means
+committing to a model of fundamental value and then arguing about the model.
 
-### Tau Groups
+Jarrow and Kwok's method sidesteps that. An asset's fundamental value is the
+discounted risk-neutral expectation of its future price, and the option market
+prices that expectation directly. So you can read fundamental value off the
+option board instead of assuming it:
 
-Three time horizon groups are analyzed:
+$$\hat{\Pi}_t(\tau) = S_t - e^{-r\tau}\,\mathbb{E}^{\mathbb{Q}}_t\!\left[S_{t+\tau}\right]$$
 
-- **Tau Group 1** (τ ≈ 0.25): Short-term bubble detection
-- **Tau Group 2** (τ ≈ 0.5): Medium-term bubble detection
-- **Tau Group 3** (τ ≈ 1.0): Long-term bubble detection
+A positive reading means the market paid more than the options implied the asset
+was worth. This repository is two things built on that idea:
 
-### Data Sources
+- **A dashboard** ([live](https://financial-bubble.vercel.app)) showing the
+  estimates for 27 assets across three maturity horizons, with confidence
+  intervals and a cross-asset panel covering the full 1996–2023 sample.
+- **An estimator** ([`research/`](research/)) implementing the underlying
+  identity in Python, with a synthetic-data harness that verifies it recovers a
+  bubble it is known to contain.
 
-- **Stock Price Data**: Split-adjusted historical prices (1996-2023)
-- **Options Data**: Put and call options with various expiration dates
-- **Time Series**: Daily bubble estimates with rolling window analysis
+## Where this came from
 
-## 🚀 Getting Started
+The bubble estimates were produced in research work with **Dr Simon Kwok**
+(School of Economics, University of Sydney), who co-authored the method with
+**Professor Robert Jarrow** (Cornell). The University of Sydney wrote up the
+result [here](https://www.sydney.edu.au/news-opinion/news/2021/08/05/how-to-predict-a-stock-market-bubble-in-real-time.html).
 
-### Prerequisites
+> Jarrow, R. A., & Kwok, S. S. (2021). Inferring financial bubbles from option
+> data. *Journal of Applied Econometrics*, 36(7), 1013–1046.
+> [doi:10.1002/jae.2862](https://doi.org/10.1002/jae.2862)
 
-- [Bun](https://bun.sh/) runtime
-- Modern web browser with JavaScript enabled
+This repository is the visualization and a reference implementation. It is not
+the paper's own code, and the authors are not responsible for anything here.
 
-### Installation
+## Reading the charts
 
-1. **Clone the repository**
+**The estimate is a price, not a probability.** For the S&P 500 it is in index
+points; for a single name, in dollars. The dashboard divides by spot price by
+default, because a 50-point bubble on a 600-point index in 1996 and a 50-point
+bubble at 4,500 in 2023 are not the same event.
 
-   ```bash
-   git clone <repository-url>
-   cd financial-bubble-detection-dashboard
-   ```
+**Read the interval, not the midpoint.** Every estimate carries a confidence
+band. When it contains zero, the data cannot distinguish that day from no bubble
+at all, and the summary panel says so rather than reporting the sign of a noisy
+number.
 
-2. **Install dependencies**
+**Horizon matters more than you would expect.** Estimates are grouped into three
+maturity windows (τ ≈ 0.25, 0.5 and 1 year) because option liquidity clusters
+around common expiries. For the S&P 500 the 2006–07 run-up reads **+1.3% of
+index at τ ≈ 1y** and only **+0.15% at τ ≈ 0.25y**. Looking at the short horizon
+alone, you would conclude nothing happened before the GFC.
 
-   ```bash
-   bun install
-   ```
+**Put-only and call-only bracket the combined series.** They disagree in a
+structured way: a call price bounds fundamental value from above and a put price
+bounds it from below, so the call-only series runs low and the put-only series
+runs high. Both bounds are sharpest at deep in-the-money strikes, which are the
+least liquid contracts on the board, so both stay loose in practice. Read the
+combined series for a number and the spread between the other two as a measure
+of how much the option market actually pins down. The mechanics are in
+[`research/README.md`](research/README.md).
 
-3. **Environment Setup (Optional for Production)**
+## Quick start
 
-   For Vercel Blob Storage integration, create a `.env.local` file:
-
-   ```bash
-   BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
-   ```
-
-   See `BLOB_SETUP.md` for detailed setup instructions.
-
-4. **Start the development server**
-
-   ```bash
-   bun run start
-   # or
-   bun run dev
-   ```
-
-   The application will be available at `http://localhost:3000`
-
-## 🏗️ Building for Production
-
-```bash
-bun run build
-```
-
-This creates an optimized production build in the `dist/` directory with TypeScript compilation.
-
-## 📁 Project Structure
-
-```
-financial-bubble-detection-dashboard/
-├── src/
-│   ├── components/              # React components
-│   │   ├── Dashboard.tsx        # Main dashboard component
-│   │   ├── DashboardControls.tsx # Control panel with stock/date selectors
-│   │   ├── PlotlyBubbleChart.tsx # Interactive Plotly charts
-│   │   ├── PriceDifferenceChart.tsx # Price comparison charts
-│   │   ├── LoadingSpinner.tsx   # Loading state component
-│   │   ├── date-picker.tsx      # Custom date picker component
-│   │   ├── theme-provider.tsx   # Theme context provider
-│   │   ├── theme-switcher.tsx   # Dark/light mode toggle
-│   │   └── ui/                  # Reusable UI components (shadcn/ui)
-│   │       ├── button.tsx       # Button component
-│   │       ├── card.tsx         # Card component
-│   │       ├── calendar.tsx     # Calendar component
-│   │       ├── select.tsx       # Select dropdown component
-│   │       └── popover.tsx      # Popover component
-│   ├── hooks/                   # Custom React hooks
-│   │   └── useDashboardData.ts  # Main data management hook
-│   ├── lib/                     # Utility libraries
-│   │   └── utils.ts             # Common utility functions
-│   ├── routes/                  # TanStack Router routes
-│   │   ├── __root.tsx           # Root route layout
-│   │   └── index.tsx            # Home page route
-│   ├── types/                   # TypeScript type definitions
-│   │   └── bubbleData.ts        # Data structure interfaces
-│   ├── utils/                   # Utility functions
-│   │   └── dataLoader.ts        # Data fetching and processing
-│   ├── styles/                  # CSS and styling
-│   │   └── styles.css           # Global styles and Tailwind imports
-│   ├── main.tsx                 # Application entry point
-│   └── routeTree.gen.ts         # Generated route tree (auto-generated)
-├── scripts/                     # Utility scripts
-│   ├── upload-to-blob.ts        # Upload data to Vercel Blob Storage
-│   ├── get-blob-urls.ts         # Retrieve blob URLs
-│   ├── test-blob-fetch.ts       # Test blob connectivity
-│   └── update-blob-urls.ts      # Update URL mappings
-├── docs/                        # Documentation
-│   └── plotly-tooltip-customization-guide.md
-├── public/                      # Static assets
-│   └── *.png, *.ico, etc.       # Images and icons
-├── dist/                        # Production build output
-├── package.json                 # Dependencies and scripts
-├── vite.config.ts               # Vite configuration
-├── tsconfig.json                # TypeScript configuration
-├── biome.json                   # Biome linter/formatter config
-├── components.json              # shadcn/ui configuration
-├── vercel.json                  # Vercel deployment config
-├── BLOB_SETUP.md                # Blob storage setup guide
-└── README.md                    # This file
-```
-
-## 📈 Available Stocks
-
-The dashboard supports analysis for the following assets:
-
-- **Indices**: SPX (S&P 500)
-- **Technology**: AAPL, MSFT, GOOG, AMZN, NVDA, INTC, CSCO, AMD
-- **Financial**: JPM, BAC, C, WFC, MS, AIG
-- **Other Sectors**: TSLA, F, GM, DIS, BA, GE, XOM, T, BABA, TWTR
-
-## 🎨 Features
-
-### Interactive Charts
-
-- **Advanced Plotly Integration**: High-performance interactive charts with zoom, pan, and selection
-- **Enhanced Tooltips**: Custom-styled tooltips with dark mode support and rich formatting
-- **Multi-Series Visualization**: Simultaneous display of all tau groups and stock prices
-- **Time Range Selection**: Date picker controls for custom time period analysis
-- **Chart Types**:
-  - Put Options Bubble Estimates (μ̂_p(τ))
-  - Call Options Bubble Estimates (μ̂_c(τ))
-  - Combined Options Bubble Estimates (μ̂_cp(τ))
-  - Price Comparison Charts (Split-adjusted vs. Raw prices)
-
-### Data Management
-
-- **Cloud Storage**: Vercel Blob Storage for production data hosting
-- **Efficient Loading**: Optimized data fetching with error handling and loading states
-- **Data Processing**: Real-time transformation of bubble estimates and price data
-- **Caching Strategy**: Smart data caching to minimize API calls
-
-### User Interface
-
-- **Modern Design System**: Built with shadcn/ui components and Tailwind CSS
-- **Responsive Layout**: Optimized for desktop, tablet, and mobile devices
-- **Theme Support**: Seamless light/dark mode toggle with system preference detection
-- **Loading States**: Smooth loading indicators and skeleton screens
-- **Accessibility**: ARIA labels, keyboard navigation, and screen reader support
-- **Error Handling**: Graceful error states with retry functionality
-
-## 🔧 Development
-
-### Available Scripts
+Nothing to configure. The dashboard reads from a public, read-only blob store.
 
 ```bash
-# Development
-bun run dev          # Start development server (alias for start)
-bun run start        # Start development server on port 3000
-bun run build        # Build for production with TypeScript compilation
-bun run serve        # Preview production build
-
-# Testing
-bun run test         # Run Vitest test suite
-
-# Code Quality
-bun run lint         # Check code quality with Biome
-bun run format       # Format code with Biome
-bun run check        # Run both lint and format checks
-
-# Data Management
-bun run upload-data  # Upload JSON files to Vercel Blob Storage
-bun run get-blob-urls # Retrieve current blob URLs
-bun run test-blob    # Test blob storage connectivity
+git clone https://github.com/lukaadzic/financial-bubble-detection-dashboard
+cd financial-bubble-detection-dashboard
+bun install
+bun run dev            # http://localhost:3000
 ```
 
-### Development Workflow
+The estimator is independent of the dashboard:
 
-1. **Local Development**: Use `bun run dev` for hot-reload development
-2. **Code Quality**: Run `bun run check` before committing
-3. **Testing**: Execute `bun run test` to run the test suite
-4. **Data Updates**: Use blob scripts to manage production data
-5. **Production Build**: Test with `bun run build && bun run serve`
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r research/requirements.txt
+pytest research -q     # 25 tests, ~0.4s
+```
 
-## 🛠️ Technology Stack
+## The estimator
 
-### Core Technologies
+`research/bubble.py` implements the identity. Put-call parity recovers
+fundamental value at every strike at once:
 
-- **Frontend Framework**: React 19 with TypeScript
-- **Build Tool**: Vite 6.1.0 with hot module replacement
-- **Package Manager**: Bun
-- **Routing**: TanStack Router with file-based routing
+$$V_t(\tau) = C(K) - P(K) + K e^{-r\tau}$$
 
-### UI & Styling
+In a frictionless market with no bubble that expression equals the spot price,
+and it is the same number at every strike. Two things break it, and the
+estimator reads one off each: microstructure noise scatters the estimate across
+strikes, which is what the confidence interval measures, and a bubble shifts the
+whole cross-section away from spot by the same amount, which is the point
+estimate. Under [Jarrow, Protter & Shimbo
+(2010)](https://doi.org/10.1111/j.1467-9965.2010.00394.x), a price process that
+is a strict local martingale rather than a true martingale violates parity by
+exactly the bubble.
 
-- **Charts**: Plotly.js with react-plotly.js for interactive visualizations
-- **Styling**: Tailwind CSS 4.1.11 with CSS variables
-- **UI Components**: shadcn/ui built on Radix UI primitives
-- **Icons**: Lucide React icon library
-- **Math Rendering**: KaTeX for mathematical expressions
+```python
+import numpy as np
+from research.bubble import estimate_bubble
+from research.simulate import simulate_quotes
 
-### Development Tools
+# A surface with a bubble of exactly 2.00 injected, plus 25bp of quote noise.
+quotes = simulate_quotes(
+    fundamental=100.0, bubble=2.0, noise_bps=25.0,
+    rng=np.random.default_rng(42),
+)
 
-- **Testing**: Vitest with jsdom environment
-- **Code Quality**: Biome for linting and formatting
-- **Type Checking**: TypeScript 5.7.2 with strict mode
-- **Performance**: Web Vitals monitoring
+estimate = estimate_bubble(quotes)
+print(f"spot         {quotes.spot:.2f}")            # spot         102.00
+print(f"fundamental  {estimate.fundamental:.2f}")   # fundamental   99.92
+print(f"bubble      {estimate.mu:+.3f}")            # bubble       +2.080
+print(f"interval    [{estimate.lb:+.3f}, {estimate.ub:+.3f}]")  # [+1.875, +2.285]
+print(f"significant  {estimate.significant}")       # significant  True
+```
 
-### Data & Storage
+`quotes_from_arrays` takes real quotes in the same shape: spot, strikes, call
+and put mid prices, a rate and a maturity.
 
-- **Cloud Storage**: Vercel Blob Storage for production data
-- **Data Processing**: Custom utilities for bubble estimate calculations
+### Does it work?
 
-### Deployment
+There is no public option dataset to check against, because the estimates here
+derive from OptionMetrics IvyDB, which is licensed. So `research/simulate.py`
+generates surfaces whose bubble is known by construction: options are priced off
+a fundamental value `V`, then the traded spot is set to `S = V + bubble`.
 
-- **Platform**: Vercel with optimized build configuration
-- **Environment**: Node.js 18+ runtime support
+Over 2,000 independent surfaces with 25bp of quote noise and a true bubble of
+2.00 on a fundamental of 100:
 
-## 📊 Data Format
+| | |
+|---|---|
+| Mean estimate | 1.9997 |
+| Bias | −0.0003 |
+| Standard deviation | 0.1005 |
+| **95% interval coverage** | **94.5%** |
 
-The application expects JSON data files with the following structure:
+Coverage is the number that matters. An estimator returning plausible values
+with intervals that never contain the truth is worse than no estimator, because
+it invites conclusions the data does not support.
 
-### Bubble Data Structure
+## Assets covered
+
+27 assets, 1996–2023, though individual names start when their options do
+(Tesla in 2010, Alibaba in 2014).
+
+| | |
+|---|---|
+| **Index** | SPX |
+| **Technology** | AAPL, MSFT, GOOG, AMZN, NVDA, INTC, CSCO, AMD, FB, BABA, TWTR |
+| **Financials** | JPM, BAC, C, WFC, MS, AIG |
+| **Industrials & other** | TSLA, F, GM, DIS, BA, GE, XOM, T |
+
+## Project layout
+
+```
+src/
+  components/
+    Dashboard.tsx           page shell and layout
+    BubbleSummaryPanel.tsx  latest reading, read off the interval
+    CrossAssetHeatmap.tsx   all 26 assets, full sample
+    PlotlyBubbleChart.tsx   the estimate charts
+    MethodologyNote.tsx     what the numbers mean, on the page
+    usePlotlyTheme.ts       shared palette + lazy plotly loader
+  hooks/useDashboardData.ts data fetching and derived state
+  utils/dataLoader.ts       blob fetching, transforms, summary stats
+  types/bubbleData.ts       schema, asset list, the percent-of-price guard
+research/
+  bubble.py                 the estimator
+  simulate.py               synthetic surfaces with a known bubble
+  test_bubble.py            recovery and coverage tests
+scripts/
+  build-cross-asset.ts      builds the heatmap's monthly panel
+  upload-to-blob.ts         publishes new estimator output
+public/data/
+  cross-asset.json          220KB monthly panel, committed
+```
+
+## Data
+
+Per-asset estimator output lives in Vercel Blob storage, keyed by ticker. Each
+file is a single JSON document:
 
 ```typescript
-interface BubbleData {
+{
   metadata: {
-    stockcode: string; // Stock symbol (e.g., "SPX", "AAPL")
-    start_date_param: string; // Analysis start date
-    end_date_param: string; // Analysis end date
-    rolling_window_days: number; // Rolling window size
-    num_steps: number; // Number of optimization steps
-    optimization_threshold: number; // Convergence threshold
-    h_number_sd: number; // Standard deviation parameter
-    tau_groups_info: TauGroupInfo[]; // Tau group definitions
-    option_types_info: string[]; // Option types analyzed
-    time_series_start_date: string; // Time series start
-    time_series_end_date: string; // Time series end
-  };
-  time_series_data: TimeSeriesDataPoint[];
-}
-
-interface TimeSeriesDataPoint {
-  date: string; // ISO date string
-  stock_prices: {
-    adjusted: number; // Split-adjusted price
-    regular?: number; // Raw price (optional)
-  };
-  bubble_estimates: {
-    daily_grouped: DailyGroupedData[]; // One per tau group
-  };
-}
-
-interface DailyGroupedData {
-  put: BubbleEstimate; // Put option estimates
-  call: BubbleEstimate; // Call option estimates
-  combined: BubbleEstimate; // Combined estimates
-}
-
-interface BubbleEstimate {
-  mu: number; // Point estimate
-  lb: number; // Lower bound
-  ub: number; // Upper bound
-}
-
-interface TauGroupInfo {
-  name: string; // Group name (e.g., "Tau Group 1")
-  range: string; // Range description
-  mean: number; // Mean tau value
+    stockcode: "SPX",
+    rolling_window_days: 63,
+    tau_groups_info: [{ name: "tau_1", range: "0.15-0.35", mean: 0.25 }, ...],
+    ...
+  },
+  time_series_data: [{
+    date: "1996-04-03T00:00:00",
+    stock_prices: { adjusted: 655.88 },
+    bubble_estimates: {
+      // one entry per tau group, ordered to match tau_groups_info
+      daily_grouped: [{
+        put:      { mu: 9.18, lb: 2.68, ub: 9.88 },
+        call:     { mu: 0.14, lb: -2.66, ub: 5.49 },
+        combined: { mu: 5.72, lb: 2.89, ub: 6.39 },
+      }, ...]
+    }
+  }, ...]
 }
 ```
 
-### Regular Price Data Structure
-
-```typescript
-interface RegularPriceData {
-  date: string; // ISO date string
-  price: number; // Raw stock price
-}
-```
-
-## 🔒 Environment Variables
-
-For production deployment with Vercel Blob Storage:
+The full schema is in [`src/types/bubbleData.ts`](src/types/bubbleData.ts).
+Regenerating the cross-asset panel after new estimator output:
 
 ```bash
-BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+bun run build:cross-asset
 ```
 
-See `BLOB_SETUP.md` for detailed setup instructions.
+### Known data issues
 
-## 🧪 Testing
+**GM, 2009.** The split-adjusted price is recorded as `0.00` through the June
+2009 bankruptcy and under a dollar for weeks either side, which turns a −$15
+estimate into −2,000% of price. `bubblePercent()` drops observations where the
+bubble exceeds the entire price of the asset rather than plotting or clamping
+them, so those dates appear as gaps.
 
-The project uses Vitest for testing with jsdom environment:
+**File size.** Each per-ticker file is roughly 12MB and served uncompressed, so
+switching assets means a 12MB download. This is the biggest open problem in the
+repo and a good place to contribute; see
+[CONTRIBUTING.md](CONTRIBUTING.md#good-first-issues).
 
-```bash
-# Run all tests
-bun run test
+## Stack
 
-# Run tests in watch mode (development)
-bun run test --watch
+React 19 · TypeScript · Vite 6 · TanStack Router · Plotly.js · Tailwind 4 ·
+shadcn/ui · Biome · Bun · Vercel. Python side is numpy, scipy and pytest.
 
-# Run tests with coverage
-bun run test --coverage
-```
+Plotly loads on demand rather than in the entry bundle, since it is 4.6MB and
+nothing can be drawn until the data arrives anyway.
 
-## 📝 License
+## Contributing
 
-This project is for research and educational purposes. Please ensure compliance with data usage policies and financial regulations in your jurisdiction.
+See [CONTRIBUTING.md](CONTRIBUTING.md). There is a ranked list of open work
+there, split by how much finance background it needs, and several items need
+none at all.
 
-## 🤝 Contributing
+## Licence
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Run tests and linting (`bun run check && bun run test`)
-4. Commit your changes (`git commit -m 'Add amazing feature'`)
-5. Push to the branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
+[Apache 2.0](LICENSE). The derived bubble series can be used under that licence;
+the underlying OptionMetrics option data cannot be redistributed.
 
-### Development Guidelines
-
-- Follow TypeScript best practices
-- Use Biome for code formatting and linting
-- Write tests for new features
-- Update documentation as needed
-- Ensure responsive design compatibility
-
-## 📞 Support
-
-For questions about the bubble detection methodology or technical implementation, please open an issue in the repository.
-
-## 📚 Additional Resources
-
-- **[BLOB_SETUP.md](./BLOB_SETUP.md)**: Detailed guide for setting up Vercel Blob Storage
-- **[Plotly.js Documentation](https://plotly.com/javascript/)**: Official Plotly documentation
-- **[TanStack Router](https://tanstack.com/router)**: Router documentation
-- **[shadcn/ui](https://ui.shadcn.com/)**: UI component library documentation
+Research output, not investment advice. The estimates end in August 2023 and are
+not updated in real time.

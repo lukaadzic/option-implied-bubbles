@@ -47,9 +47,15 @@ export function MethodologyNote() {
 
 					<p>
 						Put-only and call-only estimates are shown separately because they
-						disagree in a structured way, with puts running positive and calls
-						negative across most of the sample. The combined series is the one
-						to read for a headline number; the split is diagnostic.
+						disagree in a structured way, with puts running high and calls
+						running low across most of the sample. That ordering is not noise:
+						a call price bounds the fundamental value from above and a put
+						price bounds it from below, so the two one-sided series bracket the
+						combined one. Both bounds are sharpest at deep in-the-money
+						strikes, which are the least liquid contracts on the board, so in
+						practice both stay loose. Read the combined series for a number and
+						the spread between the other two as a measure of how much the
+						option market actually pins down.
 					</p>
 				</div>
 
