@@ -172,7 +172,7 @@ export const STOCK_NAMES: Record<StockCode, string> = {
 	NVDA: "NVIDIA",
 	T: "AT&T",
 	TSLA: "Tesla",
-	TWTR: "Twitter",
+	TWTR: "X (Twitter)",
 	WFC: "Wells Fargo",
 	XOM: "ExxonMobil",
 };
